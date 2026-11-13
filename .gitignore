@@ -1,0 +1,46 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets.yaml
+**/secrets.yaml
+config.local.*
+**/config.local.*
+
+# Personal data and exports
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.csv
+*.ofx
+*.qif
+*.mt940
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+/backups/
+/data/
+/private/
+/exports/
+/uploads/
+
+# Python and tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+dist/
+build/
+.idea/
+.vscode/
+.DS_Store
