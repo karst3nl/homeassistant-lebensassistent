@@ -1,5 +1,17 @@
 # Änderungen
 
+## 0.0.4 — Formular-403 unter Home-Assistant-Ingress
+
+- Fehler bei der Konten-/Kategorienanlage und Statusänderung behoben:
+  Home Assistants `Referrer-Policy: no-referrer` führt bei normalen
+  Browser-Formularen zu `Origin: null`.
+- Diesen Wert nur hinter verifiziertem Ingress und mit gültigem CSRF-Token
+  akzeptieren. Direkte Zugriffe, fremde Fetch-Site und fehlende/falsche Tokens
+  bleiben gesperrt.
+- Browserregression mit tatsächlich vom Browser erzeugtem `Origin: null`
+  sowie API-/Container-Negativtests ergänzt.
+- Keine neue Fachfunktion oder Schemaänderung; Schema 2 bleibt erhalten.
+
 ## 0.0.3 — Konten und Kategorien
 
 - Erste bedienbare Masken im Bereich „Konten & Buchungen“.

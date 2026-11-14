@@ -1,11 +1,11 @@
 # Lebensassistent Alpha — HA-App
 
 Experimentelle Basisoberfläche mit Navigation, automatischem Browser-Theme und
-Health-Endpunkt. Version **0.0.3** bietet die ersten bedienbaren Konten- und
+Health-Endpunkt. Version **0.0.4** bietet die ersten bedienbaren Konten- und
 Kategorienmasken mit SQLite und Audit. Buchungen, Projekte und Erinnerungen
 sind noch nicht implementiert. Die Verpackung wurde lokal mit Docker auf **amd64** geprüft.
 Der Nutzer hat die Installation und erste Sichtprüfung von **0.0.1** auf seinem
-Home Assistant bestätigt. **Das Update auf 0.0.3, vollständige HA-Security-/
+Home Assistant bestätigt. **Die 403-Korrektur auf HA, vollständige HA-Security-/
 Restart-Prüfungen und ARM-Nachweise stehen noch aus.**
 
 ## Installation zur HA-Prüfung
@@ -28,16 +28,23 @@ aktiviert werden. Diese Schritte sind die Anleitung für den noch offenen
 weiteren HA-Abnahmetest; die bisherige Nutzerbestätigung umfasst Installation
 und erste Sichtprüfung von 0.0.1.
 
-## Update von 0.0.1 oder 0.0.2 auf 0.0.3
+## Update von 0.0.1 bis 0.0.3 auf 0.0.4
 
 Die Repositories im App-Store aktualisieren und das angebotene Update auf
-**0.0.3** installieren. Der Branch bleibt **`#alpha`**. Die Datenbank wird beim
+**0.0.4** installieren. Der Branch bleibt **`#alpha`**. Die Datenbank wird beim
 Start auf Schema 2 gebracht. Bestehende Audit-Daten bleiben erhalten;
-Konten und Kategorien starten leer. Es werden keine Beispieldaten angelegt.
+bestehende Konten und Kategorien aus 0.0.3 bleiben erhalten. Bei älteren
+Versionen werden die Konten-/Kategorientabellen leer angelegt. Es werden keine
+Beispieldaten angelegt.
 
 Nach dem Update Start, Weboberfläche und einen Restart auf HA prüfen. Version
-0.0.3 wurde lokal gebaut und auf Bedienung, Start und Persistenz geprüft; das Update auf
+0.0.4 wurde lokal gebaut und auf Bedienung, Start und Persistenz geprüft; das Update auf
 dem HA-System steht noch aus.
+
+Version 0.0.4 korrigiert den gemeldeten **403 beim Kontoanlegen** unter Ingress.
+Nach dem Update die alte Add-on-Weboberfläche schließen und über Home Assistant
+frisch öffnen. Die Korrektur gilt auch für Kategorien und Archivieren/Aktivieren.
+Eine Bestätigung auf dem HA-System steht noch aus.
 
 ## Erste Funktionen testen
 

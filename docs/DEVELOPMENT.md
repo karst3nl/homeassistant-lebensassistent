@@ -119,7 +119,7 @@ geänderten Migrationen bricht der Start ab. Es gibt keinen automatischen
 Reset auf eine leere Datenbank. SQLite-UPDATE/DELETE auf Audit-Einträgen sind
 gesperrt; das ist kein Schutz gegen administrativen Dateizugriff.
 
-### Konten und Kategorien (Etappe 1.1, Version 0.0.3)
+### Konten und Kategorien (Etappe 1.1, Version 0.0.4)
 
 Mit dem oben konfigurierten Datenbankstart
 **http://127.0.0.1:8000/bereiche/finanzen** öffnen. Dort lassen sich Konten und
@@ -147,6 +147,13 @@ werden dabei abgewiesen. Das ist kein vollständiger Scheme-/Origin-Abgleich
 und ersetzt den CSRF-Token nicht. `proxy_headers=False` bleibt erhalten;
 X-Forwarded-Proto schreibt das ASGI-Scheme nicht um.
 
+HA versieht auch Ingress-Antworten mit `Referrer-Policy: no-referrer`.
+Bei nativen Browser-POSTs entsteht dadurch `Origin: null`. Seit 0.0.4 ist genau
+ein solcher Origin nur nach verifiziertem Ingress und gültiger Tokenprüfung
+zulässig. Fetch-Site wird vorher geprüft; lokale Null-Origins, doppelte
+Origin-Header, fremde Peers und fehlende/falsche Tokens bleiben abgewiesen.
+Die Referrer-Policy wird nicht überschrieben oder abgeschwächt.
+
 ### Tests und Lint
 
 ```sh
@@ -156,7 +163,7 @@ uv run --locked ruff format --check .
 uv lock --check
 ```
 
-pytest prüft **180 Unit-/API-Tests ohne Browser oder Docker**:
+pytest prüft **187 Unit-/API-Tests ohne Browser oder Docker**:
 
 - `GET /health`: HTTP 200, JSON-Content-Type und exakte Antwort.
 - `POST /health` mit synthetischem Inhalt: HTTP 405; Health bleibt unverändert.
@@ -184,6 +191,8 @@ pytest prüft **180 Unit-/API-Tests ohne Browser oder Docker**:
   Archivierung; Upgrade von Schema 1 auf 2 mit erhaltener Audit-Historie.
 - HTML-Formulare einschließlich Präfix, XSS-Escaping, CSRF-/Authority- und
   Body-/Encoding-Grenzfälle. Unzulässige Anfragen ändern keine Konten/Audits.
+- HA-Formular-POSTs mit `Origin: null` nur hinter verifiziertem Ingress und
+  gültigem Token; die Angriffsvarianten bleiben ohne DB-/Auditänderung.
 
 Die ursprünglichen Migration-1-/Audit-Grundlagentests laufen weiterhin mit
 expliziter v1-Registry; separate Tests prüfen die neue produktive Registry.
@@ -213,8 +222,8 @@ uv run --group browser --locked pytest browser_tests
 uv run --group browser --locked pytest tests browser_tests
 ```
 
-Der erste Befehl führt **27 Browsertests** aus, der zweite die API-/Browser-
-Suite mit **207 Tests**. Die Browserprüfungen starten selbst
+Der erste Befehl führt **28 Browsertests** aus, der zweite die API-/Browser-
+Suite mit **215 Tests**. Die Browserprüfungen starten selbst
 einen lokalen Uvicorn-Prozess auf einem freien Loopback-Port und beenden ihn
 anschließend. Sie prüfen 320/390/768/1280 Pixel, beide Themes, alle
 Navigationsziele, Tastatur-Sprunglink, Seitenoverflow, Asset-/Konsolenfehler,
@@ -225,6 +234,15 @@ Fehlerkorrektur, Centdarstellung, Archivierung/Aktivierung und Reload laufen
 dabei im echten Browser. Eigene temporäre Datenbanken werden über die explizit
 gestarteten Lifespans der gemounteten Apps initialisiert.
 Screenshots und Serverlogs werden im temporären pytest-Verzeichnis abgelegt.
+
+Eine zusätzliche Regression verwendet ein echtes iframe und eine synthetische
+HA-Proxy-Antwort mit `Referrer-Policy: no-referrer`. Chromium erzeugt die
+`Origin: null`-Header selbst; sie werden nicht im Test überschrieben. Sechs
+POSTs prüfen Konto/Kategorie anlegen, archivieren und aktivieren. Der Testadapter
+setzt den simulierten Supervisor-Peer ausschließlich im Browser-Testserver;
+Produktivcode und echte TCP-Peer-Prüfung bleiben separat durch API-/Docker-
+Tests abgesichert. Das ist keine Prüfung der HA-Anmeldung oder einer echten
+Home-Assistant-Installation.
 
 Alternativ kann ein vorhandenes Chromium verwendet werden (in dieser
 Cloud-Umgebung tatsächlich mit Chromium **156.0.8078.79** geprüft):
@@ -310,15 +328,16 @@ Vollständige lokale Regression mit Browser **und** Docker:
 uv run --group browser --locked pytest tests browser_tests container_tests
 ```
 
-Das sind **212 Tests**. In dieser Cloud-Umgebung werden zusätzlich
+Das sind **220 Tests**. In dieser Cloud-Umgebung werden zusätzlich
 `LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium` und
 `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt` gesetzt.
 Paket-/Image-Downloads sind nur für Einrichtung und Build erforderlich.
 Der Container-Test selbst läuft in einem internen Netz ohne externe Dienste.
 
 Die Installation und erste Sichtprüfung von 0.0.1 auf HA wurden vom Nutzer
-bestätigt. Das Update auf 0.0.3, Sessionprüfung, HA-Restart, AppArmor-Einbindung
-und der ARM-Nachweis sind weiterhin offen. Für die HA-Prüfung ausschließlich die Repository-URL
+bestätigt. Die Bestätigung der 403-Korrektur in 0.0.4, Sessionprüfung,
+HA-Restart, AppArmor-Einbindung und der ARM-Nachweis sind weiterhin offen.
+Für die HA-Prüfung ausschließlich die Repository-URL
 mit **`#alpha`** aus [DOCS.md](../DOCS.md) verwenden. Der hier verfügbare
 BuildKit-Worker unterstützt ausschließlich amd64; kein ARM- oder Zielgerätetest
 wurde daraus abgeleitet.

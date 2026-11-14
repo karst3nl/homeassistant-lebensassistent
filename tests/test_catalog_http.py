@@ -220,6 +220,90 @@ def test_verified_ingress_can_use_external_https_authority(tmp_path: Path) -> No
         assert response.headers["location"].startswith(f"{prefix}/bereiche/finanzen")
 
 
+def test_verified_ingress_accepts_no_referrer_form_origin(tmp_path: Path) -> None:
+    database = Database(tmp_path / "synthetic.sqlite3")
+    app = create_addon_app(database_path=database.path)
+    headers = {"X-Ingress-Path": "/api/hassio_ingress/synthetic-session"}
+    with TestClient(app, client=("172.30.32.2", 12345)) as client:
+        csrf = token(client, headers=headers)
+        post_headers = {**headers, "Origin": "null", "Sec-Fetch-Site": "same-origin"}
+        response = client.post(
+            "/konten",
+            headers=post_headers,
+            data=account_form(csrf),
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        response = client.post(
+            "/kategorien",
+            headers=post_headers,
+            data={"csrf_token": csrf, "name": "Synthetisch", "kind": "expense"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        for path in ("/konten/1/status", "/kategorien/1/status"):
+            for active in ("0", "1"):
+                response = client.post(
+                    path,
+                    headers=post_headers,
+                    data={"csrf_token": csrf, "active": active},
+                    follow_redirects=False,
+                )
+                assert response.status_code == 303
+    with database.connect() as connection:
+        assert connection.execute(
+            "SELECT opening_balance_cents, is_active FROM accounts"
+        ).fetchone()[:] == (-1234, 1)
+        assert connection.execute("SELECT is_active FROM categories").fetchone()[0] == 1
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM audit_log "
+                "WHERE entity_type IN ('accounts', 'categories')"
+            ).fetchone()[0]
+            == 6
+        )
+
+
+@pytest.mark.parametrize(
+    "attack",
+    ["missing-token", "wrong-token", "cross-site", "same-site", "duplicate", "peer"],
+)
+def test_null_origin_does_not_bypass_ingress_or_csrf(
+    tmp_path: Path, attack: str
+) -> None:
+    database = Database(tmp_path / "synthetic.sqlite3")
+    app = create_addon_app(database_path=database.path)
+    headers = {"X-Ingress-Path": "/api/hassio_ingress/synthetic-session"}
+    with TestClient(app, client=("172.30.32.2", 12345)) as trusted:
+        form = account_form(token(trusted, headers=headers))
+        post_headers = [*headers.items(), ("Origin", "null")]
+        if attack == "missing-token":
+            del form["csrf_token"]
+        elif attack == "wrong-token":
+            form["csrf_token"] = "synthetic-wrong"
+        elif attack in ("cross-site", "same-site"):
+            post_headers.append(("Sec-Fetch-Site", attack))
+        elif attack == "duplicate":
+            post_headers.append(("Origin", "null"))
+        if attack == "peer":
+            post_headers.append(("X-Forwarded-For", "172.30.32.2"))
+            with TestClient(app, client=("172.30.32.4", 12345)) as untrusted:
+                response = untrusted.post("/konten", headers=post_headers, data=form)
+        else:
+            response = trusted.post("/konten", headers=post_headers, data=form)
+        assert response.status_code == 403
+        with database.connect() as connection:
+            assert (
+                connection.execute("SELECT COUNT(*) FROM accounts").fetchone()[0] == 0
+            )
+            assert (
+                connection.execute(
+                    "SELECT COUNT(*) FROM audit_log WHERE entity_type='accounts'"
+                ).fetchone()[0]
+                == 0
+            )
+
+
 @pytest.mark.parametrize(
     "origin",
     [

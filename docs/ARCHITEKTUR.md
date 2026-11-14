@@ -51,6 +51,13 @@ X-Forwarded-Proto verändert weder ASGI-Scheme noch Authentifizierung. Der
 Authority-Abgleich ist keine vollständige Scheme-/Origin-Prüfung und ersetzt
 den Token nicht. Finanzseiten sind nicht cachebar; Jinja maskiert Benutzereingaben.
 
+Home Assistant setzt auf Antworten `Referrer-Policy: no-referrer`; native
+Browser-POSTs können dadurch `Origin: null` senden. Genau dieser einzelne Wert
+wird seit 0.0.4 nur hinter verifiziertem Ingress und nach erfolgreicher
+Tokenprüfung akzeptiert. Fetch-Site wird weiterhin vorher geprüft. Lokal,
+bei doppeltem Origin, fremdem Peer oder fehlendem/falschem Token bleibt der
+Zugriff gesperrt. Die Antwortpolicy wird nicht abgeschwächt.
+
 `services/values.py` verarbeitet Eurotext ausschließlich mit Integerarithmetik.
 Integer-Cent bleiben im signierten SQLite-64-Bit-Bereich; negative Anfangssalden
 sind zulässig. Konto-/Kategorieeingaben verwenden strikt validierte DTOs.

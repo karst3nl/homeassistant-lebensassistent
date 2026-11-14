@@ -158,6 +158,8 @@ def test_real_form_writes_and_csrf_failures(sandbox: DockerSandbox) -> None:
     assert page["status"] == 200
     match = re.search(r'name="csrf_token" value="([^"]+)"', page["body"])
     assert match is not None
+    # HA applies Referrer-Policy: no-referrer; browsers then post Origin: null.
+    headers = {**headers, "Origin": "null", "Sec-Fetch-Site": "same-origin"}
     form = {
         "csrf_token": match[1],
         "name": "Synthetisches TCP-Konto",
@@ -181,6 +183,15 @@ def test_real_form_writes_and_csrf_failures(sandbox: DockerSandbox) -> None:
             "/konten",
             headers,
             {**form, "csrf_token": "synthetic-wrong"},
+        )["status"]
+        == 403
+    )
+    assert (
+        sandbox.request(
+            sandbox.trusted,
+            "/konten",
+            {**headers, "Sec-Fetch-Site": "cross-site"},
+            form,
         )["status"]
         == 403
     )

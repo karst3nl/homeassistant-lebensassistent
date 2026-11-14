@@ -1,12 +1,13 @@
 # Entwicklungsfortschritt
 
 ## Stand
-- Status: **Etappen 0.1 bis 0.4 und 1.1 lokal implementiert und geprüft**, App-Version **0.0.3**; Freigabepause.
+- Status: **Etappen 0.1 bis 0.4 und 1.1 lokal implementiert und geprüft**, App-Version **0.0.4** mit Korrektur des gemeldeten Formular-403; Freigabepause.
 - Aktiver Branch: `alpha`; `main` nur Platzhalter, nicht bearbeiten.
 - Zuletzt lokal abgeschlossene Etappe: **1.1** — bedienbare Konten-/Kategorienmasken, Archivierung/Aktivierung und Audit.
-- Geprüft: **212 Tests** in frischer Umgebung: 180 Unit-/API-, 27 Chromium-Browser- und 5 echte Docker-Prüfungen; Lint/Format und Lockfile grün.
+- Geprüft: **220 Tests** in frischer Umgebung: 187 Unit-/API-, 28 Chromium-Browser- und 5 echte Docker-Prüfungen. Container nach behobenem lokalem Speicherplatzfehler separat erfolgreich wiederholt; Lint/Format und Lockfile grün.
 - Vom Nutzer bestätigt: Installation und erste Sichtprüfung von **0.0.1** auf seinem Home Assistant. Gerät, Architektur und HA-Version wurden nicht genannt.
-- Noch nicht geprüft: Update und Formulare von **0.0.3** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
+- Nutzerrückmeldung: 403 bei Kontenanlage im normalen Browser, auch nach frischem Öffnen; lokal unter HA-Referrer-Policy reproduziert und korrigiert.
+- Noch nicht geprüft: Korrektur und Update auf **0.0.4** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
 - Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.2 abwarten**; noch keine Einnahmen-/Ausgabenbuchungen oder Transfers begonnen.
 
 ## Etappenlog
@@ -17,6 +18,7 @@
 | 0.3 HA-App/Ingress | Lokal abgeschlossen; Installation/Sichtprüfung von 0.0.1 auf HA bestätigt | 81 Tests grün, amd64-Build und lokaler Container-Lebenszyklus geprüft; weitere HA-/ARM-Prüfungen offen | Fortsetzung durch Nutzer freigegeben |
 | 0.4 SQLite/Migration | Lokal abgeschlossen | 111 Tests grün; weiterhin Teil der Regression | Fortsetzung durch Nutzer freigegeben |
 | 1.1 Konten/Kategorien | Lokal abgeschlossen | 212 Tests grün; erste Masken im Browser und Container geprüft | Ergebnis zur Abnahme vorgelegt |
+| 1.1 Korrektur 0.0.4 | Gemeldeten Formular-403 lokal reproduziert und behoben | 220 Tests grün; native Browser-POSTs unter HA-Referrer-Policy geprüft | HA-Bestätigung der Korrektur ausstehend |
 | 1.2–7.x | Offen | — | Ausstehend |
 
 Nach jeder Mini-Etappe ausfüllen: Änderung, betroffene Dateien, Testbefehle mit Ergebnis, bekannte Probleme, Datenschutzcheck, Commit-SHA und Freigabe.
@@ -608,4 +610,83 @@ Stand.
 - [x] Etappe 1.1 implementiert, Version 0.0.3 mit ersten bedienbaren Masken.
 - [x] Unit-/API-, Browser-, Migrations- und echte Containerprüfungen ausgeführt.
 - [ ] HA-Update-/Bedien-/Security-/ARM-Prüfung von 0.0.3 (ausstehend).
+- [ ] Nutzerfreigabe für Etappe 1.2.
+
+## Etappe 1.1 — Korrektur des Formular-403, Version 0.0.4 — 2026-11-14
+
+### Nutzerrückmeldung und Ursache
+
+Der Nutzer meldet einen 403 beim Kontoanlegen, auch nach erneutem Öffnen der
+Weboberfläche im normalen Browser. Das ist ein Fehler in der abgeschlossenen
+Etappe 1.1; keine Freigabe oder Umsetzung von Etappe 1.2. Ausgangscommit:
+`ae71e86864b09172462f1172a8f295d18aa33b33` auf `alpha`.
+
+Die [globale HA-Core-Antwortmiddleware](https://github.com/home-assistant/core/blob/dev/homeassistant/components/http/headers.py)
+setzt `Referrer-Policy: no-referrer`. Im echten Chromium lässt sich damit bei
+nativen Formular-POSTs `Origin: null` reproduzieren. Core und Supervisor reichen
+diesen Request-Header weiter. Die bisherige ergänzende Origin-Prüfung lehnte
+ihn trotz gültigem CSRF-Token ab. Die bisherigen Browser-/Container-Fixtures
+simulierten diese Antwortpolicy nicht und hatten den Fehler nicht erfasst.
+
+### Änderungen und unveränderte Fachregeln
+
+- `api/forms.py`: exakt einen Origin-Wert `null` ausschließlich nach
+  erfolgreicher Ingress-Peer-/Präfixprüfung und gültigem Pflicht-CSRF-Token
+  zulassen. Fetch-Site wird weiterhin vorher geprüft. Lokale Null-Origins,
+  doppelte Origins, fremde Peers und fehlende/falsche Tokens bleiben gesperrt.
+  Weder Referrer-Policy noch Produktions-Peer-Gate werden abgeschwächt.
+- `tests/test_catalog_http.py`: sieben zusätzliche Fälle für alle vier
+  Formularrouten sowie Token-/Fetch-Site-/Origin-/Peer-Angriffe ohne DB- oder
+  Auditänderung. Bestehende lokale Null-Origin-Abweisung bleibt Teil der Suite.
+- `browser_tests/server.py`, `test_ingress_forms_browser.py`: eigene temporäre
+  Ingress-Testdatenbank und Testadapter mit HA-Antwortpolicy. Echtes iframe,
+  sechs native POSTs für Konto/Kategorie anlegen, archivieren und aktivieren;
+  Origin wird vom Browser erzeugt, nicht im Test überschrieben. Peer-Simulation
+  ausschließlich im Testserver, kein Nachweis einer echten HA-Anmeldung.
+- `container_tests/test_container.py`: echte TCP-POSTs mit Null-Origin;
+  falscher Token, Cross-Site und gefälschter Peer weiterhin 403. Restart und
+  Container-Neuerstellung erhalten synthetische Konten und Kategorien.
+- `config.yaml`, `pyproject.toml`, `Dockerfile`, `uv.lock`: Version **0.0.4**;
+  keine neuen Pakete oder Migrationen. Schema 2 und Anfangssaldo-Regeln bleiben
+  erhalten. Changelog, README, HA-Updateanleitung, Architektur, Testanleitung
+  und Etappenstatus aktualisiert.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Linux x86_64, Python 3.12.14, uv 0.13.6, Chromium 156.0.8078.79; ausschließlich
+synthetische Daten. Separate frische Umgebung über `UV_PROJECT_ENVIRONMENT`,
+beschreibbarer `UV_CACHE_DIR`, Chromium-/Build-CA-Konfiguration wie oben.
+
+| Befehl / Prüfung | Tatsächliches Ergebnis |
+|---|---|
+| `uv run --locked pytest tests/test_catalog_http.py -k 'no_referrer or null_origin'` vor Fix | **1 failed, 6 passed** (0,48 s); Kontoanlage 403 statt 303 reproduziert |
+| `uv run --group browser --locked pytest browser_tests/test_ingress_forms_browser.py` vor Fix | **1 failed** (2,34 s); Browser-Origin `null` nachgewiesen, POST 403 statt 303 |
+| `uv run --locked pytest tests/test_catalog_http.py` nach Fix | **54 passed** (1,41 s) |
+| Neuer Browserfall nach Fix | **1 passed** (2,97 s); alle sechs nativen POSTs mit Null-Origin und 303 |
+| `uv sync --locked --group browser` in frischer Umgebung | 29 Pakete einschließlich Version 0.0.4 installiert |
+| `uv run --group browser --locked pytest tests browser_tests container_tests` | **215 passed, 5 errors** (70,61 s); alle API-/Browsertests grün, Container-Setup wegen Docker-Speicherplatzfehler blockiert |
+| `uv run --group browser --locked pytest container_tests` nach gezielter Cachebereinigung | **5 passed** (32,16 s); damit alle **220 Tests** bestanden |
+| Ruff check/format, `uv lock --check`, `git diff --cached --check` | Erfolgreich |
+| Unabhängiges Code-/Security-Review, zusätzlicher HTTP-Testlauf | Keine offenen Befunde; nochmals **54 passed** (1,47 s) |
+| `detect-secrets==1.5.0 scan --no-verify` und manuelle Diff-Prüfung | Keine Funde; keine DB-Dateien im Repository |
+
+Docker meldete beim Containerstart ausdrücklich `no space left on device`.
+Sechs einzeln identifizierte, ungenutzte Build-Cache-Einträge unserer früheren
+Test-Builds wurden anhand ihrer IDs entfernt; keine pauschale Bereinigung.
+Danach liefen die fünf Containerfälle mit unverändertem Anwendungscode grün.
+Einzelne Formatfehler wurden vor der abschließenden Prüfung behoben.
+
+### Datenschutz, Grenzen und Abschluss
+
+Keine privaten URLs, Tokens, Konten oder sonstigen Finanzdaten angefordert oder
+hinzugefügt. Alle Testdaten, Testdatenbanken, Logs, Screenshots und Scanprotokolle
+bleiben außerhalb des Repositorys. Die lokale Simulation belegt den Fehler
+und die Korrektur unter der nachgebildeten HA-Antwortpolicy. **Die Bestätigung
+der Korrektur auf dem Nutzer-HA, vollständige HA-Security-/Restart-/AppArmor-
+Abnahme und ARM-/Raspberry-Pi-Prüfungen stehen weiterhin aus.** Keine bekannten
+offenen Fehler im lokal geprüften Umfang dieser Korrektur.
+
+- [x] Formular-403 lokal reproduziert und in Version 0.0.4 korrigiert.
+- [x] Lokale Unit-/API-, Browser- und Containerregression tatsächlich ausgeführt.
+- [ ] Bestätigung der Korrektur auf Home Assistant; weitere HA-/ARM-Abnahme.
 - [ ] Nutzerfreigabe für Etappe 1.2.

@@ -13,13 +13,14 @@ deutscher Basisoberfläche, Navigation und automatischem Hell-/Dunkel-Theme
 bereit. `GET /health` liefert HTTP 200 und `{"status":"ok"}`.
 Die übrigen Modulbereiche sind als „In Vorbereitung“ gekennzeichnet. Etappe 0.3 ergänzt
 eine experimentelle HA-App-Verpackung mit Ingress-Schutz und privatem `/data`.
-Version **0.0.3** bietet unter **Konten & Buchungen** erste Masken zum Anlegen,
+Version **0.0.4** bietet unter **Konten & Buchungen** erste Masken zum Anlegen,
 Archivieren und Aktivieren von Konten und Kategorien. Anfangssalden werden
 centgenau gespeichert. SQLite, Migrationen und Audit liegen unter `/data`.
 Buchungen und weitere Module folgen in späteren Etappen. Docker wurde lokal
 auf amd64 geprüft. Die Installation/Sichtprüfung von 0.0.1 auf HA wurde vom
-Nutzer bestätigt; die Aktualisierung auf 0.0.3 sowie vollständige HA-Security-/
-ARM-Prüfungen stehen noch aus.
+Nutzer bestätigt. Der gemeldete Formular-403 ist lokal unter Home Assistants
+Referrer-Policy reproduziert und in 0.0.4 korrigiert. Die Bestätigung der
+Korrektur auf HA sowie vollständige HA-Security-/ARM-Prüfungen stehen noch aus.
 
 Die [HA-App-Anleitung](DOCS.md) verwendet ausschließlich das Repository mit
 **`#alpha`**. Es werden keine Hostports veröffentlicht.

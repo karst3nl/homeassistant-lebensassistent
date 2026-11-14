@@ -31,6 +31,13 @@ def check_browser_origin(request: Request) -> None:
     try:
         if len(origins) != 1:
             raise ValueError("Ambiguous origin")
+        # HA's no-referrer response policy makes native form POSTs send null.
+        # read_form has already verified the token; the peer/prefix gate must
+        # also have succeeded. Local requests never get this exception.
+        if origins[0] == "null" and request.scope.get(
+            "lebensassistent.ingress_verified"
+        ):
+            return
         origin = urlsplit(origins[0])
         if (
             origin.scheme not in ("http", "https")
