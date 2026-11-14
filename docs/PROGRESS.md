@@ -177,6 +177,15 @@ Repositorys im temporären Arbeitsbereich. Die App benötigt zur Laufzeit keine
 externen Dienste; die Installation von Entwicklungswerkzeugen und Browser
 benötigt einmalig Paketdownloads.
 
+### Commitnachweis
+
+Implementierung, Tests und Prüfprotokoll sind auf `alpha` im Commit
+[`1d5b0d4bc2c9c208177dfa0e0d0cd1537c63028c`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/1d5b0d4bc2c9c208177dfa0e0d0cd1537c63028c)
+(`feat: add stage 0.2 responsive UI and prefix-safe navigation`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis; Anwendungs- und Testcode entsprechen dem mit 43 Tests geprüften
+Stand.
+
 ### Grenzen und nächster Schritt
 
 Die Modulansichten sind Platzhalter, noch keine nutzbare Finanz-/Projekt- oder
