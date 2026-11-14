@@ -686,6 +686,15 @@ der Korrektur auf dem Nutzer-HA, vollständige HA-Security-/Restart-/AppArmor-
 Abnahme und ARM-/Raspberry-Pi-Prüfungen stehen weiterhin aus.** Keine bekannten
 offenen Fehler im lokal geprüften Umfang dieser Korrektur.
 
+### Commitnachweis
+
+Korrektur, Tests, Version 0.0.4 und Prüfprotokoll sind auf `alpha` im Commit
+[`5632062424875d78010392f698d9e490a8bf9821`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/5632062424875d78010392f698d9e490a8bf9821)
+(`fix: accept protected HA ingress forms with null origin`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis; Anwendungs- und Testcode entsprechen dem mit insgesamt 220
+Tests geprüften Stand.
+
 - [x] Formular-403 lokal reproduziert und in Version 0.0.4 korrigiert.
 - [x] Lokale Unit-/API-, Browser- und Containerregression tatsächlich ausgeführt.
 - [ ] Bestätigung der Korrektur auf Home Assistant; weitere HA-/ARM-Abnahme.
