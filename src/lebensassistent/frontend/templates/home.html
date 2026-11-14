@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="welcome" aria-labelledby="welcome-title">
+  <div>
+    <p class="eyebrow">WILLKOMMEN ZU HAUSE</p>
+    <h1 id="welcome-title">Dein Alltag.<br><span>Gut geordnet.</span></h1>
+    <p class="welcome-copy">Finanzen, Vorhaben und Termine – hier findet alles seinen Platz. Damit mehr Zeit für das bleibt, was dir wichtig ist.</p>
+  </div>
+  <div class="welcome-illustration" aria-hidden="true">
+    <div class="illustration-orbit"></div>
+    <div class="illustration-card"><svg class="icon"><use href="#icon-leaf"/></svg><span>Alles im Blick.</span><i></i><i></i><i></i></div>
+    <span class="illustration-dot"></span>
+  </div>
+</section>
+<section aria-labelledby="areas-title">
+  <div class="section-heading"><div><p class="eyebrow">DEIN LEBENSASSISTENT</p><h2 id="areas-title">Was möchtest du organisieren?</h2></div><span class="section-hint">Ein Platz für jeden Bereich.</span></div>
+  <div class="module-grid">
+    {% for item in sections if item.key != 'einstellungen' %}
+    <a class="module-card" href="{{ url_for('section', section_key=item.key) }}">
+      <span class="module-icon"><svg class="icon" aria-hidden="true"><use href="#icon-{{ item.icon }}"/></svg></span>
+      <span class="module-status">In Vorbereitung</span>
+      <h3>{{ item.title }}</h3>
+      <p>{{ item.description }}</p>
+      <span class="module-link">Bereich ansehen<svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

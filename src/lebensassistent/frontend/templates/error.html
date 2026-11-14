@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="empty-state error-state" aria-labelledby="error-title">
+  <p class="error-code">{{ error_code }}</p>
+  <h1 id="error-title">{{ title }}</h1>
+  <p>{{ message }} Über die Übersicht findest du zurück zu deinen Bereichen.</p>
+  <a class="button" href="{{ url_for('home') }}">Zur Übersicht<svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+</section>
+{% endblock %}

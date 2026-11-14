@@ -20,7 +20,7 @@ The intended app covers accounts and transactions, recurring expenses, savings g
 
 The functional specification must be sanitized before publishing, including examples and metadata.
 
-## Lokale Entwicklung (Etappe 0.1)
+## Lokale Entwicklung
 
 ### Voraussetzungen und Einrichtung
 
@@ -69,28 +69,95 @@ Der Entwicklungsserver bindet nur an die lokale Loopback-Adresse. Ist Port
 8000 belegt, Server und curl mit demselben anderen lokalen Port starten.
 Eine HA-/Ingress-Konfiguration folgt erst in Etappe 0.3.
 
+Die Oberfläche ist unter **http://127.0.0.1:8000/** erreichbar. Sie bietet eine
+Übersicht und sieben weitere navigierbare Modulbereiche als Platzhalter.
+Alle Texte, Styles und Icons werden lokal ausgeliefert; JavaScript und externe
+Fonts/CDNs sind nicht erforderlich. Die Navigation funktioniert auch mit
+Tastatur und ohne JavaScript. Ein Sprunglink führt direkt zum Hauptinhalt.
+Das Theme folgt automatisch der Browser-/Systemeinstellung
+`prefers-color-scheme`. Die Synchronisierung mit einer abweichenden manuellen
+HA-Theme-Einstellung ist noch nicht implementiert oder getestet.
+
 ### Tests und Lint
 
 ```sh
-uv run --locked pytest tests/test_health.py
+uv run --locked pytest tests/test_health.py tests/test_ui.py
 uv run --locked pytest
 uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv lock --check
 ```
 
-Der erste Befehl prüft gezielt die neue API, der zweite führt sämtliche
-vorhandenen Tests als Regression aus. Aktuell sind das dieselben drei Tests:
+Die ersten beiden Befehle prüfen die **25 Unit-/API-Tests ohne Browser**:
 
 - `GET /health`: HTTP 200, JSON-Content-Type und exakte Antwort.
 - `POST /health` mit synthetischem Inhalt: HTTP 405; Health bleibt unverändert.
 - Ein erfundener, unbekannter Pfad: HTTP 404.
+- Deutsche HTML-Seiten und alle acht Navigationsziele.
+- Lokale Asset-Pfade und Browser-Fehlerseiten mit korrektem HTTP 404/405.
+- Präfixerhalt bei ASGI-Mounts und gesetztem `root_path`, einschließlich
+  mehrerer App-Mounts; Health behält auch für Browser-Anfragen sein JSON.
+- Fehlende/private Assets bleiben unerreichbar; ungeprüfte Ingress-/Proxy-
+  Header verändern keine Links.
 
-Jeder Test verwendet eine eigene App-Instanz mit FastAPI-Testclient. Es werden
+Die API-Tests verwenden isolierte App-Instanzen mit FastAPI-Testclient. Es werden
 keine persönlichen Daten, Laufzeitdatenbanken oder laufenden HA-Systeme
 benötigt. Warnungen sind in pytest als Fehler konfiguriert. Ein tatsächlicher
 Serverstart mit curl ergänzt die API-Tests. Erfolgreiche lokale Prüfungen sind
 keine Abnahme auf Home Assistant OS oder ARM/Raspberry Pi.
+
+### Browsertests und vollständige Regression
+
+Die zusätzliche Gruppe `browser` enthält exakt versioniertes Playwright.
+Einmalig Browser und gegebenenfalls benötigte Systembibliotheken gemäß der
+Playwright-Ausgabe einrichten:
+
+```sh
+uv sync --locked --group browser
+uv run --group browser --locked playwright install chromium
+```
+
+```sh
+uv run --group browser --locked pytest browser_tests
+uv run --group browser --locked pytest tests browser_tests
+```
+
+Der erste Befehl führt **18 Browsertests** aus, der zweite die vollständige
+Suite mit **43 API- und Browsertests**. Die Browserprüfungen starten selbst
+einen lokalen Uvicorn-Prozess auf einem freien Loopback-Port und beenden ihn
+anschließend. Sie prüfen 320/390/768/1280 Pixel, beide Themes, alle
+Navigationsziele, Tastatur-Sprunglink, Seitenoverflow, Asset-/Konsolenfehler,
+externe Anfragen sowie 404-Rücknavigation und einen Theme-Wechsel im Betrieb.
+Screenshots und Serverlogs werden im temporären pytest-Verzeichnis abgelegt.
+
+Alternativ kann ein vorhandenes Chromium verwendet werden (in dieser
+Cloud-Umgebung tatsächlich mit Chromium **156.0.8078.79** geprüft):
+
+```sh
+LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium uv run --group browser --locked pytest tests browser_tests
+```
+
+### Lokale Präfixsimulation
+
+Die Browsertests verwenden einen synthetischen Mount unter
+`/synthetic-ingress/`. Zum manuellen Prüfen derselben Testkonfiguration:
+
+```sh
+uv run --locked uvicorn browser_tests.server:app --host 127.0.0.1 --port 8000
+```
+
+Dann **http://127.0.0.1:8000/synthetic-ingress/** öffnen. Navigation, Styles,
+Icon und Zurück-Links behalten diesen Präfix bei. Alle URLs werden aus den
+lokalen App-Routen und dem vertrauenswürdig konfigurierten ASGI-`root_path`
+erzeugt. `X-Ingress-Path` und `X-Forwarded-Prefix` werden nicht ungeprüft
+übernommen. Unbekannte Seiten liefern für Browser mit `Accept: text/html`
+eine deutsche Fehlerseite mit echtem HTTP 404 bzw. 405; API-Clients behalten
+JSON-Fehler. `/health` und Asset-Fehler bleiben unabhängig davon
+JSON-Schnittstellen bzw. JSON-Fehlerantworten.
+
+Diese Simulation testet Pfadverhalten, **keine HA-Authentifizierung oder echte
+Ingress-Integration**. HA-Verpackung und Zugriffsschutz folgen in Etappe 0.3;
+bis dahin ausschließlich an `127.0.0.1` starten.
 
 ### Aktuelle Projektstruktur
 
@@ -104,10 +171,16 @@ src/lebensassistent/
     api/
         __init__.py
         health.py                   # GET /health
+        ui.py                       # HTML-Seiten, lokale URLs und Fehlerseiten
+    frontend/
+        templates/                  # Basis, Übersicht, Platzhalter, Fehlerseite
+        static/                     # lokales CSS und SVG-Icon
 tests/
-    test_health.py                  # synthetische API-Tests
+    test_health.py                  # Health-Vertrag
+    test_ui.py                      # synthetische API-/Präfix-Tests
+browser_tests/                      # separat ausführbare Playwright-Regression
 docs/                               # verbindliche Vorgaben und Ergebnisse
 ```
 
 Weitere Schichten aus `ARCHITEKTUR.md` werden erst in ihrer jeweiligen Etappe
-angelegt. Etappe 0.2 beginnt ausschließlich nach ausdrücklicher Freigabe.
+angelegt. Etappe 0.3 beginnt ausschließlich nach ausdrücklicher Freigabe.

@@ -8,11 +8,13 @@ No personal financial information, real account data, credentials, or production
 
 ## Lokaler Entwicklungsstand
 
-Etappe 0.1 stellt einen minimalen FastAPI-Webserver mit `GET /health` bereit.
-Der Endpunkt liefert HTTP 200 und `{"status":"ok"}`. Es gibt noch keine
-Finanzverwaltung, Datenbank, Benutzeroberfläche oder Home-Assistant-Verpackung.
+Etappen 0.1 und 0.2 stellen einen lokalen FastAPI-Webserver mit responsiver
+deutscher Basisoberfläche, Navigation und automatischem Hell-/Dunkel-Theme
+bereit. `GET /health` liefert HTTP 200 und `{"status":"ok"}`.
+Die Modulbereiche sind als „In Vorbereitung“ gekennzeichnet; Finanzverwaltung,
+Datenbank und Home-Assistant-Verpackung folgen in späteren Etappen.
 
 Einrichtung, Projektstruktur sowie Start- und Testbefehle stehen in
-[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#lokale-entwicklung-etappe-01).
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#lokale-entwicklung).
 Durchgeführte Prüfungen und offene Integrationsprüfungen stehen in
 [docs/PROGRESS.md](docs/PROGRESS.md).

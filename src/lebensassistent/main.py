@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 
 from lebensassistent.api.health import router as health_router
+from lebensassistent.api.ui import install_ui
 
 
 def create_app() -> FastAPI:
@@ -14,6 +15,7 @@ def create_app() -> FastAPI:
         openapi_url=None,
     )
     application.include_router(health_router)
+    install_ui(application)
     return application
 
 
