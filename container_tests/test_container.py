@@ -67,8 +67,31 @@ def test_stop_start_restart_and_recreate_keep_synthetic_data(
         "assert Path('/data/synthetic-marker.txt').read_text() == "
         "'synthetic persistence check'"
     )
+    write_audit = """
+from pathlib import Path
+from lebensassistent.database.connection import Database, transaction
+from lebensassistent.database.audit import append_audit
+with Database(Path('/data/lebensassistent.sqlite3')).connect() as connection:
+    with transaction(connection):
+        append_audit(connection, entity_type='synthetic', entity_id=1,
+                     action='create', after={'label': 'synthetic persistence check'})
+"""
+    read_audit = """
+from pathlib import Path
+from lebensassistent.database.connection import Database
+with Database(Path('/data/lebensassistent.sqlite3')).connect() as connection:
+    assert connection.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE entity_type = 'synthetic'"
+    ).fetchone()[0] == 1
+    assert connection.execute(
+        'SELECT COUNT(*) FROM schema_migrations'
+    ).fetchone()[0] == 1
+"""
     sandbox.docker(
         "exec", "--user", "1000:1000", sandbox.app, "python", "-c", write_marker
+    )
+    sandbox.docker(
+        "exec", "--user", "1000:1000", sandbox.app, "python", "-c", write_audit
     )
     sandbox.docker("stop", "--time", "10", sandbox.app)
     state = json.loads(sandbox.docker("inspect", sandbox.app).stdout)[0]["State"]
@@ -83,10 +106,16 @@ def test_stop_start_restart_and_recreate_keep_synthetic_data(
     sandbox.docker(
         "exec", "--user", "1000:1000", sandbox.app, "python", "-c", read_marker
     )
+    sandbox.docker(
+        "exec", "--user", "1000:1000", sandbox.app, "python", "-c", read_audit
+    )
     sandbox.docker("restart", "--time", "10", sandbox.app)
     sandbox.wait_ready()
     sandbox.docker(
         "exec", "--user", "1000:1000", sandbox.app, "python", "-c", read_marker
+    )
+    sandbox.docker(
+        "exec", "--user", "1000:1000", sandbox.app, "python", "-c", read_audit
     )
     sandbox.docker("stop", "--time", "10", sandbox.app)
     sandbox.docker("rm", sandbox.app)
@@ -94,3 +123,24 @@ def test_stop_start_restart_and_recreate_keep_synthetic_data(
     sandbox.docker(
         "exec", "--user", "1000:1000", sandbox.app, "python", "-c", read_marker
     )
+    sandbox.docker(
+        "exec", "--user", "1000:1000", sandbox.app, "python", "-c", read_audit
+    )
+
+
+def test_database_is_private_initialized_and_consistent(sandbox: DockerSandbox) -> None:
+    code = """
+from pathlib import Path
+from lebensassistent.database.connection import Database
+path = Path('/data/lebensassistent.sqlite3')
+assert path.stat().st_mode & 0o777 == 0o600
+assert path.stat().st_uid == path.stat().st_gid == 1000
+with Database(path).connect() as connection:
+    assert connection.execute('PRAGMA journal_mode').fetchone()[0] == 'wal'
+    assert connection.execute('PRAGMA foreign_keys').fetchone()[0] == 1
+    assert connection.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
+    assert connection.execute('PRAGMA foreign_key_check').fetchall() == []
+    row = connection.execute('SELECT MAX(version) FROM schema_migrations').fetchone()
+    assert row[0] == 1
+"""
+    sandbox.docker("exec", "--user", "1000:1000", sandbox.app, "python", "-c", code)

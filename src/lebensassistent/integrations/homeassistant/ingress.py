@@ -1,6 +1,7 @@
 """Ingress nur vom echten Supervisor-Peer, ohne Vertrauen in Forwarded-Header."""
 
 import re
+from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from starlette.responses import JSONResponse
@@ -73,6 +74,6 @@ class IngressMiddleware:
         await self.app(adapted, receive, relative_redirect)
 
 
-def create_addon_app() -> IngressMiddleware:
+def create_addon_app(*, database_path: Path | None = None) -> IngressMiddleware:
     """Sicherer App-Einstiegspunkt; lokale Entwicklung bleibt separat."""
-    return IngressMiddleware(create_app())
+    return IngressMiddleware(create_app(database_path=database_path))

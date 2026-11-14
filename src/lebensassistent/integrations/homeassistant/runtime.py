@@ -6,6 +6,7 @@ from pathlib import Path
 
 import uvicorn
 
+from lebensassistent.database import DATABASE_FILENAME
 from lebensassistent.integrations.homeassistant.ingress import create_addon_app
 
 DATA_DIR = Path("/data")
@@ -41,10 +42,11 @@ def main() -> None:
     drop_privileges()
     verify_writable_data_directory(DATA_DIR)
     uvicorn.run(
-        create_addon_app(),
+        create_addon_app(database_path=DATA_DIR / DATABASE_FILENAME),
         host="0.0.0.0",
         port=8099,
         proxy_headers=False,
         access_log=False,
         server_header=False,
+        lifespan="on",
     )

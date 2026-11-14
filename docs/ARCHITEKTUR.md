@@ -14,6 +14,24 @@ Lokal betreibbare Home Assistant App (vormals Add-on) mit Ingress, eigener Pytho
 
 Diese Schichten beschreiben die **Zielstruktur**. Der tatsächlich implementierte Umfang steht in [PROGRESS.md](PROGRESS.md). Dateistruktur nur etappenweise erstellen.
 
+## SQLite-Grundlage (Etappe 0.4)
+
+`database/` enthält eine Connection-Factory, explizite Transaktionsgrenzen,
+eine unveränderliche Migrationsregistry und den Audit-Schreibhelfer. Zunächst
+existieren nur `schema_migrations` und `audit_log`. Fachliche Tabellen folgen
+in ihren jeweiligen Etappen.
+
+Jede Verbindung aktiviert WAL, Fremdschlüssel, vollständige Synchronisierung
+und einen begrenzten Lock-Timeout. Migrationen beginnen vor dem Lesen der
+Historie mit `BEGIN IMMEDIATE`; Schema, Versionsmarke und Audit sind atomar.
+Ein Audit-Eintrag verwendet dieselbe bereits aktive Transaktion wie die
+Änderung. Es gibt keine global geteilten SQLite-Verbindungen.
+
+Der HA-Entrypoint übergibt fest `/data/lebensassistent.sqlite3`. Die Migration
+läuft im App-Lifespan vor dem ersten HTTP-Zugriff und nach dem Rechteabwurf.
+Die lokale Entwicklung verwendet nur bei expliziter Pfadangabe eine Datenbank;
+Imports und die Standard-Test-App erzeugen keine Repository-Datenbank.
+
 ## Datenschutz / Betrieb
 - Alle privaten Laufzeitdaten bleiben unter HA-App-`/data` und werden niemals committet.
 - Kein direkter ungeschützter Netzwerkport, kein öffentliches API, keine Cloudpflicht.

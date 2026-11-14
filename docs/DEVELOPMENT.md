@@ -80,6 +80,42 @@ Das Theme folgt automatisch der Browser-/Systemeinstellung
 `prefers-color-scheme`. Die Synchronisierung mit einer abweichenden manuellen
 HA-Theme-Einstellung ist noch nicht implementiert oder getestet.
 
+### Lokaler Start mit Datenbank (Etappe 0.4)
+
+Der normale Entwicklungsstart ohne Konfiguration bleibt ohne Datenbank.
+Für Datenbanktests ausschließlich synthetische Daten in einem ausdrücklich
+angelegten privaten Verzeichnis **außerhalb des Repositorys** verwenden:
+
+```sh
+umask 077
+task_data_dir=$(mktemp -d)
+uv run --locked python -m lebensassistent.database --path "$task_data_dir/lebensassistent.sqlite3"
+LEBENSASSISTENT_DATA_DIR="$task_data_dir" uv run --locked uvicorn lebensassistent.main:app --host 127.0.0.1 --port 8000
+```
+
+`mktemp -d` erzeugt ein privates Verzeichnis mit Modus 0700; die gesetzte
+umask schützt neue Dateien. Das temporäre Verzeichnis eignet sich nur für
+synthetische Entwicklungsdaten. Für wiederholte lokale Sitzungen denselben
+privaten Pfad ausdrücklich erneut verwenden. Der Pfad muss absolut sein;
+fehlende Elternverzeichnisse werden nicht automatisch angelegt.
+
+Der CLI-Befehl initialisiert oder aktualisiert die Datei und meldet aktuell
+`Database ready; schema version 1`. Der Server führt dieselbe Prüfung vor dem
+ersten HTTP-Zugriff erneut idempotent aus. In HA ist der Pfad unabhängig von
+dieser Entwicklungsvariable fest auf `/data/lebensassistent.sqlite3` gesetzt.
+
+Aktuell gibt es nur `schema_migrations` und `audit_log`. Neue Verbindungen
+prüfen WAL und Fremdschlüssel, verwenden `synchronous=FULL` und einen
+Lock-Timeout von fünf Sekunden. Schreibvorgänge verwenden explizite
+Transaktionen; Audit-Einträge dürfen nur innerhalb derselben aktiven
+Transaktion entstehen. Migrationen haben unveränderliche Prüfsummen und
+werden gemeinsam mit ihrer Versionsmarke und ihrem Audit-Eintrag committed.
+
+Bei beschädigten Dateien, nicht unterstützten neueren Versionshistorien oder
+geänderten Migrationen bricht der Start ab. Es gibt keinen automatischen
+Reset auf eine leere Datenbank. SQLite-UPDATE/DELETE auf Audit-Einträgen sind
+gesperrt; das ist kein Schutz gegen administrativen Dateizugriff.
+
 ### Tests und Lint
 
 ```sh
@@ -89,7 +125,7 @@ uv run --locked ruff format --check .
 uv lock --check
 ```
 
-pytest prüft **60 Unit-/API-Tests ohne Browser oder Docker**:
+pytest prüft **89 Unit-/API-Tests ohne Browser oder Docker**:
 
 - `GET /health`: HTTP 200, JSON-Content-Type und exakte Antwort.
 - `POST /health` mit synthetischem Inhalt: HTTP 405; Health bleibt unverändert.
@@ -106,6 +142,11 @@ pytest prüft **60 Unit-/API-Tests ohne Browser oder Docker**:
   Laufzeitvorbereitung werden mit temporären Verzeichnissen geprüft.
 - Die App-Konfiguration beantragt weder Hostports noch zusätzliche API-,
   Geräte- oder Hostrechte.
+- Fresh-DB, idempotenter Start, Upgrade mit Datenerhalt, atomarer DDL-/DML-
+  Rollback, Versions-/Prüfsummenfehler, Fremdschlüssel und Audit-Rollback.
+- Beschädigte oder neuere Datenbanken verhindern den Start; Standard-Imports
+  erzeugen keine Repository-Datenbank. Der explizite lokale Datenpfad und das
+  CLI-Migrationstool werden in eigenen Prozessen geprüft.
 
 Einzelne Bereiche lassen sich z. B. mit
 `uv run --locked pytest tests/test_ingress.py` gezielt prüfen.
@@ -133,7 +174,7 @@ uv run --group browser --locked pytest tests browser_tests
 ```
 
 Der erste Befehl führt **18 Browsertests** aus, der zweite die API-/Browser-
-Suite mit **78 Tests**. Die Browserprüfungen starten selbst
+Suite mit **107 Tests**. Die Browserprüfungen starten selbst
 einen lokalen Uvicorn-Prozess auf einem freien Loopback-Port und beenden ihn
 anschließend. Sie prüfen 320/390/768/1280 Pixel, beide Themes, alle
 Navigationsziele, Tastatur-Sprunglink, Seitenoverflow, Asset-/Konsolenfehler,
@@ -183,14 +224,16 @@ docker build --build-arg BUILD_ARCH=amd64 -t lebensassistent:alpha .
 uv run --locked pytest container_tests
 ```
 
-Die **3 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
+Die **4 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
 UUID-benannte Testcontainer, ein privates Volume und ein internes Testnetz
 mit Subnetz `172.30.32.0/24`. Der Entwicklungs-Dockerdaemon muss dieses Netz
 frei haben. Es werden keine Hostports geöffnet. Ein Client mit TCP-Adresse
 `172.30.32.2` simuliert den Supervisor; ein zweiter Client versucht Direktzugriffe
 und Header-Fälschungen. Die Tests prüfen tatsächliche Prozessrechte, `/data`,
 geordnete Stop-/Start-/Restart-Vorgänge und synthetische Persistenz bis zur
-Container-Neuerstellung. Anschließend werden nur die eigenen Testressourcen
+Container-Neuerstellung. Dabei werden zusätzlich DB-Integrität, WAL/FK und
+Audit-/Migrationshistorie nach dem Neustart geprüft. Die SQLite-Datei unter
+`/data` hat UID/GID 1000 und Modus 0600. Anschließend werden nur die eigenen Testressourcen
 entfernt. Build- und Serverlogs liegen im temporären pytest-Verzeichnis.
 
 Die Tests verschärfen den Betrieb zusätzlich mit schreibgeschütztem
@@ -215,14 +258,15 @@ Vollständige lokale Regression mit Browser **und** Docker:
 uv run --group browser --locked pytest tests browser_tests container_tests
 ```
 
-Das sind **81 Tests**. In dieser Cloud-Umgebung werden zusätzlich
+Das sind **111 Tests**. In dieser Cloud-Umgebung werden zusätzlich
 `LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium` und
 `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt` gesetzt.
 Paket-/Image-Downloads sind nur für Einrichtung und Build erforderlich.
 Der Container-Test selbst läuft in einem internen Netz ohne externe Dienste.
 
-Die reale HA-Installation, Sessionprüfung, AppArmor-Einbindung und der ARM-Build
-sind weiterhin offen. Für die HA-Prüfung ausschließlich die Repository-URL
+Die Installation und erste Sichtprüfung von 0.0.1 auf HA wurden vom Nutzer
+bestätigt. Das Update auf 0.0.2, Sessionprüfung, HA-Restart, AppArmor-Einbindung
+und der ARM-Nachweis sind weiterhin offen. Für die HA-Prüfung ausschließlich die Repository-URL
 mit **`#alpha`** aus [DOCS.md](../DOCS.md) verwenden. Der hier verfügbare
 BuildKit-Worker unterstützt ausschließlich amd64; kein ARM- oder Zielgerätetest
 wurde daraus abgeleitet.
@@ -252,16 +296,21 @@ src/lebensassistent/
         templates/                  # Basis, Übersicht, Platzhalter, Fehlerseite
         static/                     # lokales CSS und SVG-Icon
     integrations/homeassistant/     # Ingress-Schutz und fester HA-Entrypoint
+    database/                       # Connections, Migrationen, Audit und CLI
 tests/
     test_health.py                  # Health-Vertrag
     test_ui.py                      # synthetische API-/Präfix-Tests
     test_ingress.py                 # TCP-Peer- und Header-Vertrauenskette
     test_addon_runtime.py           # private Daten und Rechteabwurf
     test_addon_config.py            # minimale Rechte der HA-Konfiguration
+    test_database.py                # WAL, FKs, Commit und Rollback
+    test_migrations.py              # Fresh-DB, Upgrades und Versionshistorie
+    test_audit.py                   # atomare, unveränderliche Audit-Einträge
+    test_database_startup.py        # Startfehler, explizite Pfade und CLI
 browser_tests/                      # separat ausführbare Playwright-Regression
 container_tests/                    # echter Build und isolierter Lebenszyklus
 docs/                               # verbindliche Vorgaben und Ergebnisse
 ```
 
 Weitere Schichten aus `ARCHITEKTUR.md` werden erst in ihrer jeweiligen Etappe
-angelegt. Etappe 0.4 beginnt ausschließlich nach ausdrücklicher Freigabe.
+angelegt. Etappe 1.1 beginnt ausschließlich nach ausdrücklicher Freigabe.

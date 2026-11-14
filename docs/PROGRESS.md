@@ -1,20 +1,21 @@
 # Entwicklungsfortschritt
 
 ## Stand
-- Status: **Etappen 0.1 bis 0.3 lokal implementiert und geprüft**; HA-/ARM-Abnahme noch offen, Freigabepause.
+- Status: **Etappen 0.1 bis 0.4 lokal implementiert und geprüft**, App-Version **0.0.2**; Freigabepause.
 - Aktiver Branch: `alpha`; `main` nur Platzhalter, nicht bearbeiten.
-- Zuletzt lokal abgeschlossene Etappe: **0.3** — HA-Verpackung, Ingress-Schutz, privater Datenpfad und Container-Lebenszyklus.
-- Geprüft: **81 Tests** in frischer Umgebung: 60 Unit-/API-, 18 Chromium-Browser- und 3 echte Docker-Prüfungen; Lint/Format, Lockfile und Secret-Scan grün.
-- Noch nicht geprüft: echte HA-OS-Installation, HA-Ingress-Sessionprüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Betrieb. Es existiert noch keine Datenbank.
-- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 0.4 abwarten**; noch keine Arbeiten daran begonnen.
+- Zuletzt lokal abgeschlossene Etappe: **0.4** — SQLite, Migrationen, Transaktionen und Audit-Grundlage.
+- Geprüft: **111 Tests** in frischer Umgebung: 89 Unit-/API-, 18 Chromium-Browser- und 4 echte Docker-Prüfungen; Lint/Format und Lockfile grün.
+- Vom Nutzer bestätigt: Installation und erste Sichtprüfung von **0.0.1** auf seinem Home Assistant. Gerät, Architektur und HA-Version wurden nicht genannt.
+- Noch nicht geprüft: Update auf **0.0.2** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
+- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.1 abwarten**; noch keine Konten-/Kategorien- oder Finanzfunktionen begonnen.
 
 ## Etappenlog
 | Etappe | Status | Tests | Freigabe |
 |---|---|---|---|
 | 0.1 Grundgerüst und Health | Lokal abgeschlossen | 3 API-Tests grün; weiterhin Teil der Regression | Fortsetzung mit „weiter“ freigegeben |
 | 0.2 Responsive UI | Lokal abgeschlossen | 25 API-Tests und 18 Browsertests grün; weiterhin Teil der Regression | Fortsetzung mit „weiter“ freigegeben |
-| 0.3 HA-App/Ingress | Lokal abgeschlossen; HA-/ARM-Abnahme offen | 81 Tests grün, amd64-Build und lokaler Container-Lebenszyklus geprüft | Ergebnis zur Abnahme vorgelegt |
-| 0.4 SQLite/Migration | Offen | — | Ausstehend |
+| 0.3 HA-App/Ingress | Lokal abgeschlossen; Installation/Sichtprüfung von 0.0.1 auf HA bestätigt | 81 Tests grün, amd64-Build und lokaler Container-Lebenszyklus geprüft; weitere HA-/ARM-Prüfungen offen | Fortsetzung durch Nutzer freigegeben |
+| 0.4 SQLite/Migration | Lokal abgeschlossen | 111 Tests grün; Fresh-DB, Upgrade, Rollback und persistente DB geprüft | Ergebnis zur Abnahme vorgelegt |
 | 1.x–7.x | Offen | — | Ausstehend |
 
 Nach jeder Mini-Etappe ausfüllen: Änderung, betroffene Dateien, Testbefehle mit Ergebnis, bekannte Probleme, Datenschutzcheck, Commit-SHA und Freigabe.
@@ -300,11 +301,13 @@ Scanprotokoll liegen außerhalb des Repositorys; eigene Testcontainer, -netze,
 -volumes und -imagetags werden vom Test wieder entfernt. Es wurde kein Image
 veröffentlicht und keine echte HA-Installation verändert.
 
-**Nicht durchgeführt:** Installation und Start/Stop/Restart auf HA OS, echte
+**Zum Abschluss dieser Etappe noch nicht durchgeführt:** Installation und Start/Stop/Restart auf HA OS, echte
 HA-Login-/Logout- und Ingress-Sessionprüfung, Supervisor-AppArmor-Einbindung,
 ARM-Build und Raspberry-Pi-Laufzeittest. Der verfügbare BuildKit-Worker bietet
 nur amd64 an; es wurde kein privilegierter ARM-Emulator installiert. Die
 lokalen Container sind ein synthetischer Netzwerktest, kein Home Assistant.
+Die spätere Nutzerbestätigung für Installation/Sichtprüfung von 0.0.1 ist im
+Abschnitt 0.4 protokolliert und ersetzt keine vollständige HA-Abnahme.
 
 Die offene HA-/ARM-Abnahme ist in [DOCS.md](../DOCS.md) beschrieben. Es bleiben
 keine bekannten Fehler innerhalb des lokal geprüften Umfangs von 0.3. Keine
@@ -324,4 +327,124 @@ Stand.
 - [x] Etappe 0.3 implementiert.
 - [x] Unit-/API-, Browser- und echte Containerprüfungen lokal ausgeführt.
 - [ ] HA-OS-/Ingress-/ARM-Laufzeittest (ausstehend).
-- [ ] Nutzerfreigabe für Etappe 0.4.
+- [x] Nutzerfreigabe für Etappe 0.4 nach bestätigter HA-Installation (2026-11-14).
+
+## Etappe 0.4 — 2026-11-14
+
+### Freigabe und Nutzerprüfung
+
+Der Nutzer meldete zur angebotenen Alpha **0.0.1**: „das klappt und sieht gut
+aus“ und gab die weitere Entwicklung frei. Das wird als erfolgreiche
+Installation und erste Sichtprüfung auf seinem Home Assistant erfasst, nicht
+als Login-/Logout-, Restart-, AppArmor- oder ARM-Abnahme. Geräte-/HA-Version
+und Architektur sind unbekannt. Das neue Update **0.0.2** wurde dort noch
+nicht geprüft.
+
+Ausgangscommit auf `alpha`:
+`8008dce77cb3b7e5006d87611c6111c4fce28ab9`. Ausschließlich Etappe 0.4 wurde
+umgesetzt. Für Konten und Kategorien aus 1.1 liegt noch keine separate
+Etappenfreigabe vor.
+
+### Änderungen
+
+- `database/connection.py`: Dateipfad muss ausdrücklich und absolut angegeben
+  werden. Jede Verbindung prüft Fremdschlüssel und WAL, setzt
+  `synchronous=FULL` und einen Lock-Timeout von fünf Sekunden. Keine global
+  geteilten Connections. Explizite `BEGIN IMMEDIATE`-/Commit-/Rollback-Grenzen;
+  verschachtelte Transaktionen werden abgelehnt, Verbindungen sicher geschlossen.
+- `database/migrations.py`: lückenlose Registry, Versionsname, SHA-256-Prüfsumme
+  und UTC-Zeitpunkt. Alle anstehenden Statements, Versionsmarken und
+  Migration-Audits laufen in einer gemeinsamen Transaktion. Kein
+  `executescript()` und keine impliziten Zwischen-Commits. Fremdschlüsselprüfung
+  vor Commit; unbekannte neuere oder veränderte Historien werden abgelehnt.
+- Erste produktive Migration erzeugt nur `audit_log` mit Index und
+  Änderungs-/Löschschutz; technische Historie in `schema_migrations`.
+  Keine Konten-, Buchungs- oder anderen Fachtabellen vorgezogen.
+- `database/audit.py`: parametrisierte Inserts, UTC-Zeitpunkte und gültige
+  JSON-Snapshots ohne NaN/Infinity. Aktive Transaktion des Aufrufers zwingend;
+  der Helfer committet nicht selbst. Audit und spätere Fachänderungen können
+  dadurch gemeinsam zurückrollen. Schutz gilt gegen reguläres UPDATE/DELETE,
+  nicht gegen administrative Manipulation der Datei.
+- `database/__main__.py`: explizites lokales Initialisierungs-/Migrationstool.
+- `main.py`: optionale DB-Injektion; Migration im Lifespan vor HTTP-Annahme.
+  Beschädigte oder nicht unterstützte Dateien verhindern den Start, ohne sie
+  durch eine leere Datei zu ersetzen. Standard-App ohne expliziten Pfad erzeugt
+  keine Datenbank; lokaler Start optional über `LEBENSASSISTENT_DATA_DIR`.
+- HA-Entrypoint verwendet fest **`/data/lebensassistent.sqlite3`**, nach
+  Rechteabwurf und Schreibprobe. Lifespan explizit eingeschaltet.
+- 29 neue Unit-/API-Tests und erweiterte Containerprüfungen mit echten
+  DB-/Audit-Persistenzchecks. Sämtliche SQL-Testtabellen und Daten synthetisch.
+- App-Konfiguration, Paket und Docker-Versionsdefault konsistent auf **0.0.2**
+  erhöht; `uv.lock` aktualisiert, keine neue Laufzeitabhängigkeit (sqlite3-stdlib).
+- README, HA-Updateanleitung, Changelog, Architektur und lokale Entwicklungs-
+  sowie Testanleitung aktualisiert.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Linux x86_64, Python **3.12.14**, lokale SQLite-Bibliothek **3.53.1**, uv
+**0.13.6**, Chromium **156.0.8078.79**. Docker-Prüfungen verwenden weiterhin
+den gepinnten Python-Container und das temporäre Cloud-CA-Secret aus 0.3.
+
+| Befehl / Prüfung | Tatsächliches Ergebnis |
+|---|---|
+| `uv run --locked pytest tests/test_database.py` | **5 passed** (0,03 s) |
+| `uv run --locked pytest tests/test_database.py tests/test_migrations.py tests/test_audit.py` | **22 passed** (0,11 s) |
+| `uv run --locked pytest tests/test_database_startup.py` | **7 passed** (0,77 s) |
+| `uv run --locked pytest` | **89 passed** (1,28 s), einschließlich aller bisherigen API-Tests |
+| `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt uv run --locked pytest container_tests` | **4 passed** (25,10 s); aktuelles 0.0.2-Image gebaut und gestartet |
+| `uv sync --locked --group browser` mit separatem `UV_PROJECT_ENVIRONMENT` | Frische Umgebung mit Version 0.0.2 und 29 Paketen eingerichtet |
+| `uv run --group browser --locked pytest tests browser_tests container_tests` mit Chromium-/CA-Konfiguration in dieser Umgebung | **111 passed** (66,25 s): 89 API + 18 Browser + 4 Container |
+| `uv run --locked ruff check .` | **All checks passed!** |
+| `uv run --locked ruff format --check .` | Erfolgreich |
+| `uv lock --check`, `git diff --check` | Erfolgreich |
+| Unabhängiges Code-/Startup-/Container-/Dokumentationsreview | Keine offenen Befunde; FK-Fail-closed und präzise Beschreibung des lokalen Starttests ergänzt |
+| `git diff --cached --check` und manuelle Diff-Prüfung | Erfolgreich; keine Datenbankdateien im Repository gefunden |
+| `uvx --from detect-secrets==1.5.0 detect-secrets scan --no-verify` | Keine Funde in vorgemerkten oder bereits versionierten Dateien |
+
+Geprüft wurden Fresh-DB, erneuter Start ohne doppelte Migration/Audits,
+synthetische Upgrades mit Datenerhalt, vollständiger Rollback von DDL/DML/
+Historie/Audit bei einem Fehler sowie anschließender erfolgreicher Upgrade-
+Versuch. Neue/falsche Historien und geänderte Prüfsummen werden abgelehnt.
+Fremdschlüsselverletzungen und Audit-Fehler rollen Transaktionen zurück;
+Audit-Einträge lassen sich weder ändern noch löschen. Nicht endliche JSON-
+Werte werden vor dem Schreiben abgelehnt. SQL-ähnlicher synthetischer Text
+bleibt durch Parameterbindung ein Datenwert.
+
+Der echte Containerlauf prüfte die DB unter `/data`: UID/GID 1000, Dateimodus
+0600, WAL, Fremdschlüssel, `integrity_check=ok` und keine FK-Verletzungen.
+Ein synthetischer Audit-Eintrag und die Migrationshistorie blieben über Stop,
+Start, Restart und Container-Neuerstellung mit demselben Volume erhalten.
+Die 18 Browsertests prüfen den bisherigen UI-Umfang unverändert mit.
+
+Tests wurden vor Connection-, Migrations-/Audit- und Startup-Implementierung
+angelegt und scheiterten zunächst an fehlenden Modulen bzw. noch fehlender
+Pfadinjektion. Alle späteren Ergebnisse oben wurden tatsächlich ausgeführt.
+Lint-/Formatfehler wurden in derselben Etappe beseitigt.
+
+### Datenschutz und Grenzen
+
+Alle SQLite-Testdateien liegen in temporären Verzeichnissen bzw. eigenen
+Docker-Testvolumes außerhalb des Repositorys. Die lokale Anleitung setzt
+`umask 077` und ein privates Verzeichnis mit Modus 0700 voraus. Keine echten
+Finanzdaten, Konten, Tokens, DB-Dateien oder Backups wurden hinzugefügt.
+Vorgemerkten Diff manuell und mit Secret-Scan ohne externe Verifikation
+geprüft; keine Funde. Testvolumes und eigene Containerressourcen wurden nach
+den Prüfungen entfernt.
+
+Die neu gebaute Version 0.0.2 wurde lokal auf Start und Persistenz geprüft;
+ein tatsächlicher Wechsel vom 0.0.1- zum 0.0.2-Image auf HA wurde nicht
+ausgeführt. Ebenso offen: volle HA-Session-/Restart-/AppArmor-Abnahme,
+ARM-/Raspberry-Pi-Nachweis und spätere Backup-/Restoreprüfungen.
+
+Die Oberfläche enthält weiterhin Platzhalter. Diese Etappe schafft die
+technische Grundlage; Etappe 1.1 bringt als Nächstes Konten und Kategorien.
+Keine Finanzverwaltung oder zusätzlichen Funktionen aus späteren Etappen
+begonnen. Keine bekannten Fehler im lokal geprüften Umfang von 0.4.
+
+### Abschlusscheckliste
+
+- [x] Etappe 0.4 implementiert, Version 0.0.2 vorbereitet.
+- [x] Unit-/API-, Browser-, Migrations- und echte Containerprüfungen ausgeführt.
+- [x] Nutzerbestätigung für Installation/Sichtprüfung von 0.0.1 dokumentiert.
+- [ ] HA-Update-/Restart-/Security-/ARM-Prüfung von 0.0.2 (ausstehend).
+- [ ] Nutzerfreigabe für Etappe 1.1.

@@ -1,6 +1,6 @@
 # Implementierungsplan — ausschließlich Branch `alpha`
 
-Status: Etappen 0.1 bis 0.3 lokal umgesetzt; HA-/ARM-Abnahme für 0.3 noch offen. Etappe 0.4 wartet auf Nutzerfreigabe. Prüfergebnisse: [PROGRESS.md](PROGRESS.md). Quelle: [Pflichtenheft](PFLICHTENHEFT.md) und [AGENTS.md](../AGENTS.md).
+Status: Etappen 0.1 bis 0.4 lokal umgesetzt. Installation/Sichtprüfung von 0.0.1 auf HA vom Nutzer bestätigt; Update-/Security-/ARM-Abnahme weiter offen. Etappe 1.1 wartet auf Nutzerfreigabe. Prüfergebnisse: [PROGRESS.md](PROGRESS.md). Quelle: [Pflichtenheft](PFLICHTENHEFT.md) und [AGENTS.md](../AGENTS.md).
 
 ## Verbindlicher Entwicklungsmodus
 Eine Etappe besteht aus: Anforderung lesen → Mini-Design/Tests definieren → klein implementieren → Unit/API-Tests → Regression → Datenschutz-Review → Dokumentation/Commit auf `alpha` → **anhalten und Freigabe abwarten**. Keine parallele Großimplementierung. `main` nie verändern.

@@ -13,8 +13,11 @@ deutscher Basisoberfläche, Navigation und automatischem Hell-/Dunkel-Theme
 bereit. `GET /health` liefert HTTP 200 und `{"status":"ok"}`.
 Die Modulbereiche sind als „In Vorbereitung“ gekennzeichnet. Etappe 0.3 ergänzt
 eine experimentelle HA-App-Verpackung mit Ingress-Schutz und privatem `/data`.
-Finanzverwaltung und Datenbank folgen in späteren Etappen. Docker wurde lokal
-auf amd64 geprüft; echte HA-OS-/Ingress- und ARM-Prüfungen stehen noch aus.
+Version **0.0.2** ergänzt die SQLite-Grundlage mit Migrationen und Audit unter
+`/data`. Die Oberfläche enthält weiterhin Platzhalter; Konten und Buchungen
+folgen in späteren Etappen. Docker wurde lokal auf amd64 geprüft. Die
+Installation/Sichtprüfung von 0.0.1 auf HA wurde vom Nutzer bestätigt; das
+0.0.2-Update sowie vollständige HA-Security-/ARM-Prüfungen stehen noch aus.
 
 Die [HA-App-Anleitung](DOCS.md) verwendet ausschließlich das Repository mit
 **`#alpha`**. Es werden keine Hostports veröffentlicht.
