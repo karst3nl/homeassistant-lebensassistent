@@ -1,0 +1,45 @@
+<section id="buchungen" aria-labelledby="bookings-title" class="catalog-section">
+  <div class="section-heading"><div><p class="eyebrow">EINNAHMEN UND AUSGABEN</p><h2 id="bookings-title">Deine Buchungen</h2></div></div>
+  <p class="field-help">Kontosalden gelten zum {{ as_of | local_date }}. Zukünftig datierte Buchungen zählen erst ab ihrem Datum. Umbuchungen, Aufteilungen und Stornierungen folgen später.</p>
+  <div class="finance-layout">
+    <div class="record-list">
+      <p class="field-help">Letzte 50 Buchungen, nach Buchungsdatum sortiert.</p>
+      {% for booking in transactions %}
+      <article class="record-card compact" aria-label="Buchung {{ booking.id }}">
+        <div class="record-heading"><div><span class="record-kind">{{ 'Einnahme' if booking.kind == 'income' else 'Ausgabe' }}</span><h3>{{ booking.category_name }}</h3></div><span class="amount">{{ '+' if booking.kind == 'income' else '-' }}{{ booking.amount_cents | eur }}</span></div>
+        <p>{{ booking.account_name }} · {{ booking.booked_date | local_date }}</p>
+        {% if booking.status != 'posted' %}<p class="status-badge">Storniert</p>{% elif booking.booked_date > as_of %}<p class="status-badge">Zukünftig datiert · noch nicht im heutigen Saldo</p>{% endif %}
+        {% if booking.description %}<p class="record-note">{{ booking.description }}</p>{% endif %}
+      </article>
+      {% else %}<div class="empty-records"><h3>Noch keine Buchungen</h3><p>Lege zunächst ein Konto und eine passende Kategorie an. Danach kannst du Einnahmen und Ausgaben erfassen.</p></div>{% endfor %}
+    </div>
+    <form action="{{ url_for('create_transaction') }}" method="post" class="entry-form" aria-labelledby="new-booking-title">
+      <h3 id="new-booking-title">Neue Buchung</h3>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="submission_id" value="{{ values.transaction.submission_id }}">
+      {{ error('transaction.submission_id') }}
+      <label for="booking-kind">Buchungsart</label>
+      <select id="booking-kind" name="kind"><option value="expense"{% if values.transaction.kind == 'expense' %} selected{% endif %}>Ausgabe</option><option value="income"{% if values.transaction.kind == 'income' %} selected{% endif %}>Einnahme</option></select>
+      {{ error('transaction.kind') }}
+      <label for="booking-account">Buchungskonto</label>
+      <select id="booking-account" name="account_id" required><option value="">Konto auswählen</option>{% for account in accounts if account.is_active %}<option value="{{ account.id }}"{% if values.transaction.account_id == account.id|string %} selected{% endif %}>{{ account.name }}</option>{% endfor %}</select>
+      {{ error('transaction.account_id') }}
+      <label for="booking-category">Buchungskategorie</label>
+      <select id="booking-category" name="category_id" required><option value="">Kategorie auswählen</option>{% for category in categories if category.is_active %}<option value="{{ category.id }}"{% if values.transaction.category_id == category.id|string %} selected{% endif %}>{{ category.name }} ({{ 'Einnahme' if category.kind == 'income' else 'Ausgabe' }})</option>{% endfor %}</select>
+      <p class="field-help">Die Kategorie muss zur Buchungsart passen.</p>
+      {{ error('transaction.category_id') }}
+      <label for="booking-amount">Buchungsbetrag in EUR</label>
+      <input id="booking-amount" name="amount" value="{{ values.transaction.amount }}" required inputmode="decimal" maxlength="32" aria-describedby="booking-amount-help"{% if errors.get('transaction.amount') %} aria-invalid="true"{% endif %}>
+      <p id="booking-amount-help" class="field-help">Positiver Betrag ohne Tausendertrennzeichen, z. B. 12,34. Einnahme oder Ausgabe bestimmt das Vorzeichen.</p>
+      {{ error('transaction.amount') }}
+      <label for="booking-date">Buchungsdatum</label>
+      <input id="booking-date" type="date" name="booked_date" value="{{ values.transaction.booked_date }}"{% if errors.get('transaction.booked_date') %} aria-invalid="true"{% endif %}>
+      <p class="field-help">Standard heute. Frühestens ab dem Startdatum des Kontos.</p>
+      {{ error('transaction.booked_date') }}
+      <label for="booking-description">Buchungsnotiz <span class="optional">(optional)</span></label>
+      <textarea id="booking-description" name="description" maxlength="2000" rows="2">{{ values.transaction.description }}</textarea>
+      {{ error('transaction.description') }}
+      <button type="submit" class="button">Buchung speichern</button>
+    </form>
+  </div>
+</section>

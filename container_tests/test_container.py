@@ -148,6 +148,13 @@ with Database(path).connect() as connection:
     assert connection.execute(
         "SELECT COUNT(*) FROM audit_log WHERE entity_type='synthetic_upgrade'"
     ).fetchone()[0] == 1
+    assert connection.execute(
+        "SELECT opening_balance_cents FROM accounts "
+        "WHERE name='Synthetisches Upgrade-Konto'"
+    ).fetchone()[0] == 10000
+    assert connection.execute(
+        "SELECT kind FROM categories WHERE name='Synthetische Upgrade-Kategorie'"
+    ).fetchone()[0] == 'income'
 """
     sandbox.docker("exec", "--user", "1000:1000", sandbox.app, "python", "-c", code)
 
@@ -214,6 +221,7 @@ def test_real_form_writes_and_csrf_failures(sandbox: DockerSandbox) -> None:
     assert "Synthetisches TCP-Konto" in page["body"]
     assert "-10,01 €" in page["body"]
     assert "Synthetische TCP-Kategorie" in page["body"]
+
     assert sandbox.request(sandbox.trusted, "/konten", headers, form)["status"] == 403
     logs = sandbox.docker("logs", sandbox.app)
     assert "Synthetisches TCP-Konto" not in logs.stdout + logs.stderr
@@ -225,3 +233,86 @@ def test_real_form_writes_and_csrf_failures(sandbox: DockerSandbox) -> None:
     assert "Synthetisches TCP-Konto" in page["body"]
     assert "-10,01 €" in page["body"]
     assert "Synthetische TCP-Kategorie" in page["body"]
+
+
+def test_postings_and_balances_survive_recreation(sandbox: DockerSandbox) -> None:
+    headers = {
+        "X-Ingress-Path": PREFIX,
+        "Origin": "null",
+        "Sec-Fetch-Site": "same-origin",
+    }
+    page = sandbox.request(sandbox.trusted, "/bereiche/finanzen", headers)
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', page["body"])[1]
+    submission = re.search(r'name="submission_id" value="([^"]+)"', page["body"])[1]
+    # The fixture seeded this account/category at schema 2, before app startup.
+    form = {
+        "csrf_token": csrf,
+        "submission_id": submission,
+        "account_id": "1",
+        "category_id": "1",
+        "kind": "income",
+        "amount": "0,01",
+        "booked_date": "2026-01-15",
+        "description": "Synthetische TCP-Buchung",
+    }
+    assert (
+        sandbox.request(
+            sandbox.untrusted,
+            "/buchungen",
+            {**headers, "X-Forwarded-For": "172.30.32.2"},
+            form,
+        )["status"]
+        == 403
+    )
+    assert (
+        sandbox.request(
+            sandbox.trusted,
+            "/buchungen",
+            headers,
+            {**form, "csrf_token": "synthetic-wrong"},
+        )["status"]
+        == 403
+    )
+    for _ in range(2):
+        assert (
+            sandbox.request(sandbox.trusted, "/buchungen", headers, form)["status"]
+            == 303
+        )
+    assert (
+        sandbox.request(
+            sandbox.trusted, "/buchungen", headers, {**form, "amount": "9,99"}
+        )["status"]
+        == 409
+    )
+    check = """
+from pathlib import Path
+from datetime import date
+from lebensassistent.database.connection import Database
+from lebensassistent.services.ledger import LedgerService
+database = Database(Path('/data/lebensassistent.sqlite3'))
+assert LedgerService(database).balance(1, date(2026, 1, 15)) == 10001
+with database.connect() as connection:
+    assert connection.execute('SELECT COUNT(*) FROM transactions').fetchone()[0] == 1
+    assert connection.execute(
+        'SELECT COUNT(*) FROM transaction_splits').fetchone()[0] == 1
+    assert connection.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE entity_type='transactions'"
+    ).fetchone()[0] == 1
+"""
+    for recreate in (False, True):
+        if recreate:
+            sandbox.docker("stop", "--time", "10", sandbox.app)
+            sandbox.docker("rm", sandbox.app)
+            sandbox.start_app()
+        else:
+            sandbox.docker("restart", "--time", "10", sandbox.app)
+            sandbox.wait_ready()
+        sandbox.docker(
+            "exec", "--user", "1000:1000", sandbox.app, "python", "-c", check
+        )
+        page = sandbox.request(sandbox.trusted, "/bereiche/finanzen", headers)
+        assert "Synthetische TCP-Buchung" in page["body"]
+        assert "100,01 €" in page["body"]
+    logs = sandbox.docker("logs", sandbox.app)
+    for private in (csrf, submission, "Synthetische TCP-Buchung"):
+        assert private not in logs.stdout + logs.stderr

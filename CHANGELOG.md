@@ -1,5 +1,17 @@
 # Änderungen
 
+## 0.0.5 — Einnahmen, Ausgaben und Kontosalden
+
+- Einnahmen und Ausgaben mit Konto, passender Kategorie, positivem Eurobetrag,
+  Datum (Standard heute in Europe/Berlin) und optionaler Notiz erfassen.
+- Buchung, vollständige Kategoriezuordnung und Audit gemeinsam atomar speichern;
+  wiederholte Übermittlung desselben Formulars erzeugt keine Doppelbuchung.
+- Kontosalden aus Anfangssaldo und gebuchten Bewegungen berechnen. Zukünftig
+  datierte Einträge werden gekennzeichnet und zählen erst ab ihrem Datum.
+- Letzte 50 Buchungen anzeigen; archivierte Konten/Kategorien behalten ihre Historie.
+- Schema 3 erhält Konten, Kategorien und Audit aus älteren Versionen.
+- Noch keine Mehrfachaufteilungen, Umbuchungen, Rückerstattungen oder Stornierungen.
+
 ## 0.0.4 — Formular-403 unter Home-Assistant-Ingress
 
 - Fehler bei der Konten-/Kategorienanlage und Statusänderung behoben:

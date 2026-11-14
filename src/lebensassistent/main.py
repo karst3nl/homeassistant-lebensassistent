@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from lebensassistent.api.catalog import router as catalog_router
 from lebensassistent.api.health import router as health_router
+from lebensassistent.api.ledger import router as ledger_router
 from lebensassistent.api.ui import install_ui
 from lebensassistent.database import DATABASE_FILENAME
 from lebensassistent.database.connection import Database
@@ -36,6 +37,7 @@ def create_app(*, database_path: Path | None = None) -> FastAPI:
     )
     application.include_router(health_router)
     application.include_router(catalog_router)
+    application.include_router(ledger_router)
     application.state.csrf_token = secrets.token_urlsafe(32)
     install_ui(application)
     return application

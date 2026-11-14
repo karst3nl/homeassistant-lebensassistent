@@ -1,14 +1,14 @@
 # Entwicklungsfortschritt
 
 ## Stand
-- Status: **Etappen 0.1 bis 0.4 und 1.1 lokal implementiert und geprüft**, App-Version **0.0.4** mit Korrektur des gemeldeten Formular-403; Freigabepause.
+- Status: **Etappen 0.1 bis 0.4 und 1.1 bis 1.2 lokal implementiert und geprüft**, App-Version **0.0.5**; Freigabepause.
 - Aktiver Branch: `alpha`; `main` nur Platzhalter, nicht bearbeiten.
-- Zuletzt lokal abgeschlossene Etappe: **1.1** — bedienbare Konten-/Kategorienmasken, Archivierung/Aktivierung und Audit.
-- Geprüft: **220 Tests** in frischer Umgebung: 187 Unit-/API-, 28 Chromium-Browser- und 5 echte Docker-Prüfungen. Container nach behobenem lokalem Speicherplatzfehler separat erfolgreich wiederholt; Lint/Format und Lockfile grün.
+- Zuletzt lokal abgeschlossene Etappe: **1.2** — Einnahmen/Ausgaben, atomare Speicherung, Kategoriezuordnung und berechnete Salden.
+- Geprüft: **313 Tests** in frischer Umgebung: 270 Unit-/API-, 37 Chromium-Browser- und 6 echte Docker-Prüfungen; Lint/Format und Lockfile grün.
 - Vom Nutzer bestätigt: Installation und erste Sichtprüfung von **0.0.1** auf seinem Home Assistant. Gerät, Architektur und HA-Version wurden nicht genannt.
-- Nutzerrückmeldung: 403 bei Kontenanlage im normalen Browser, auch nach frischem Öffnen; lokal unter HA-Referrer-Policy reproduziert und korrigiert.
-- Noch nicht geprüft: Korrektur und Update auf **0.0.4** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
-- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.2 abwarten**; noch keine Einnahmen-/Ausgabenbuchungen oder Transfers begonnen.
+- Vom Nutzer zusätzlich bestätigt: Die 403-Korrektur aus **0.0.4** funktioniert auf seinem Home Assistant; keine darüber hinausgehende Security-/ARM-Abnahme abgeleitet.
+- Noch nicht geprüft: Update und Buchungsfunktionen von **0.0.5** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
+- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.3 abwarten**; noch keine Mehrfachaufteilungen, Transfers, Refunds oder Buchungskorrekturen begonnen.
 
 ## Etappenlog
 | Etappe | Status | Tests | Freigabe |
@@ -17,9 +17,10 @@
 | 0.2 Responsive UI | Lokal abgeschlossen | 25 API-Tests und 18 Browsertests grün; weiterhin Teil der Regression | Fortsetzung mit „weiter“ freigegeben |
 | 0.3 HA-App/Ingress | Lokal abgeschlossen; Installation/Sichtprüfung von 0.0.1 auf HA bestätigt | 81 Tests grün, amd64-Build und lokaler Container-Lebenszyklus geprüft; weitere HA-/ARM-Prüfungen offen | Fortsetzung durch Nutzer freigegeben |
 | 0.4 SQLite/Migration | Lokal abgeschlossen | 111 Tests grün; weiterhin Teil der Regression | Fortsetzung durch Nutzer freigegeben |
-| 1.1 Konten/Kategorien | Lokal abgeschlossen | 212 Tests grün; erste Masken im Browser und Container geprüft | Ergebnis zur Abnahme vorgelegt |
-| 1.1 Korrektur 0.0.4 | Gemeldeten Formular-403 lokal reproduziert und behoben | 220 Tests grün; native Browser-POSTs unter HA-Referrer-Policy geprüft | HA-Bestätigung der Korrektur ausstehend |
-| 1.2–7.x | Offen | — | Ausstehend |
+| 1.1 Konten/Kategorien | Lokal abgeschlossen | 212 Tests grün; erste Masken im Browser und Container geprüft | Fortsetzung durch Nutzer freigegeben |
+| 1.1 Korrektur 0.0.4 | Formular-403 behoben; Erfolg vom Nutzer bestätigt | 220 Tests grün; native Browser-POSTs unter HA-Referrer-Policy geprüft | „das hat geklappt, mach weiter“ |
+| 1.2 Einnahmen/Ausgaben | Lokal abgeschlossen | 313 Tests grün; Salden, Replay, Upgrade und Persistenz geprüft | Ergebnis zur Abnahme vorgelegt |
+| 1.3–7.x | Offen | — | Ausstehend |
 
 Nach jeder Mini-Etappe ausfüllen: Änderung, betroffene Dateien, Testbefehle mit Ergebnis, bekannte Probleme, Datenschutzcheck, Commit-SHA und Freigabe.
 
@@ -609,8 +610,8 @@ Stand.
 
 - [x] Etappe 1.1 implementiert, Version 0.0.3 mit ersten bedienbaren Masken.
 - [x] Unit-/API-, Browser-, Migrations- und echte Containerprüfungen ausgeführt.
-- [ ] HA-Update-/Bedien-/Security-/ARM-Prüfung von 0.0.3 (ausstehend).
-- [ ] Nutzerfreigabe für Etappe 1.2.
+- [ ] Vollständige HA-/Security-/ARM-Abnahme; Nutzerbestätigung für 0.0.4 unten.
+- [x] Nutzerfreigabe für Etappe 1.2 durch „das hat geklappt, mach weiter“.
 
 ## Etappe 1.1 — Korrektur des Formular-403, Version 0.0.4 — 2026-11-14
 
@@ -697,5 +698,132 @@ Tests geprüften Stand.
 
 - [x] Formular-403 lokal reproduziert und in Version 0.0.4 korrigiert.
 - [x] Lokale Unit-/API-, Browser- und Containerregression tatsächlich ausgeführt.
-- [ ] Bestätigung der Korrektur auf Home Assistant; weitere HA-/ARM-Abnahme.
-- [ ] Nutzerfreigabe für Etappe 1.2.
+- [x] Nutzerbestätigung der Korrektur auf Home Assistant (2026-11-14).
+- [ ] Weitere vollständige HA-/ARM-Abnahme.
+- [x] Nutzerfreigabe für Etappe 1.2 durch „das hat geklappt, mach weiter“.
+
+## Etappe 1.2 — 2026-11-14
+
+### Freigabe und Nutzerprüfung
+
+Der Nutzer bestätigt mit **„das hat geklappt, mach weiter“** die 403-Korrektur
+von 0.0.4 und gibt die nächste Etappe frei. Das belegt die korrigierte
+Kontenanlage im zuvor genannten Browserkontext, keine vollständige HA-Security-,
+Restart- oder ARM-Abnahme. Ausschließlich Etappe 1.2 wurde umgesetzt.
+Ausgangscommit auf `alpha`: `fa814a77f5979e724ffa5b88710dc5adf42669e9`.
+
+### Änderungen und Regeln
+
+- Migration **3** ergänzt `transactions` und `transaction_splits`; Migrationen
+  1 und 2 bleiben einschließlich Prüfsummen unverändert. Jede Normalbuchung
+  erhält genau eine automatische Zuordnung ihres gesamten Betrags zu einer
+  Kategorie. Keine Mehrfachaufteilung oder weitere Buchungsarten angeboten.
+- `services/ledger.py`: Einnahmen/Ausgaben mit positivem int64-Centbetrag,
+  aktivem Konto und aktiver Kategorie derselben Art. Datum ab Kontostart,
+  Standard heute in Europe/Berlin; Notiz optional, maximal 2000 Zeichen.
+  Buchung, Zuordnung und vollständiger Audit-Snapshot laufen in einer
+  `BEGIN IMMEDIATE`-Transaktion; Fehler rollen alle Änderungen zurück.
+- Technische eindeutige Formular-ID: identischer Retry liefert dieselbe
+  Buchung ohne neues Audit; abweichender Inhalt mit derselben ID ergibt 409.
+  Die Transaktion serialisiert auch parallele Wiederholungen. Ein frisches
+  Formular erlaubt eine neue, bewusst inhaltlich gleiche Buchung.
+- `repositories/ledger.py`: parametrisierte Inserts und Abfragen. Salden
+  ausschließlich aus Anfangssaldo und `posted`-Transaktionen bis zum Stichtag,
+  ohne Split-JOIN oder gespeichertes Saldofeld. Ein SQL-Snapshot und Python-
+  Integer vermeiden SQLite-SUM-Overflow bei großen Aggregaten.
+- Vor Kontoöffnung kein Saldo. Archivierte Konten/Kategorien behalten ihre
+  Historie. Zukünftig datierte Buchungen sind erlaubt, werden sichtbar
+  gekennzeichnet und zählen erst ab ihrem Datum zum aktuellen Saldo.
+- `api/ledger.py`, `api/catalog.py`, `main.py`, `bookings.html`, `accounts.html`:
+  normales HTML-Formular, Fehlermeldungen und Werterhalt, letzte 50 Buchungen,
+  heutiger Saldo und Anfangssaldo getrennt. Bestehender Form-/CSRF-/Ingress-
+  Schutz samt Null-Origin-Korrektur bleibt erhalten; kein zusätzliches JSON-API.
+- CSS für schmale Navigation, Zukunftskennzeichnung und zusammenhängende
+  Betrag-/Euroanzeige angepasst. Bestehende Browser-Locators präzisiert.
+- HA-Konfiguration, Paket, Docker-Default und Lockfile konsistent auf **0.0.5**;
+  keine neue Abhängigkeit. README, Changelog, HA-Update-/Testanleitung,
+  Architektur und lokale Entwicklungsanleitung aktualisiert.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Linux x86_64, Python **3.12.14**, uv **0.13.6**, Chromium **156.0.8078.79**.
+Alle Namen, Beträge, Notizen, Datenbanken und Netzwerkszenarien sind synthetisch.
+Zusätzliche Umgebungen, Logs und Testdaten liegen außerhalb des Repositorys.
+
+| Befehl / Prüfung | Tatsächliches Ergebnis |
+|---|---|
+| `uv run --locked pytest tests/test_ledger_schema.py` vor/nach Migration | Zunächst **10 failed** (0,34 s); danach **10 passed** (0,16 s) |
+| Bestehende API-Suite plus neue Schemafälle | Nach explizitem Erhalt der historischen v1→v2-Fixture **197 passed** (2,27 s) |
+| `uv run --locked pytest tests/test_ledger_service.py` vor Service | Erwarteter Sammelfehler wegen fehlendem Modul (0,20 s) |
+| `uv run --locked pytest tests/test_ledger_service.py tests/test_ledger_schema.py` | **50 passed** (0,45 s) |
+| `uv run --locked pytest tests/test_ledger_http.py` vor HTTP-/UI-Anbindung | **33 failed** (0,81 s), noch fehlendes Buchungsformular |
+| `uv run --locked pytest tests` nach Anbindung | **270 passed** (3,80 s) |
+| Neue Ledger- und bisherige Katalog-Browserfälle | Zunächst **17 passed, 1 failed** (34,57 s); mehrdeutigen alten Notiz-Locator präzisiert, betroffener Nachlauf **1 passed** (2,06 s) |
+| `uv run --group browser --locked pytest container_tests` | Erster Aufbau mit Docker-Startcode 125 blockiert; nach gezielter Bereinigung eigener alter Cache-IDs **6 passed** (45,08 s) |
+| `uv sync --locked --group browser` mit frischem `UV_PROJECT_ENVIRONMENT` | 29 Pakete einschließlich Version 0.0.5 installiert |
+| `uv run --group browser --locked pytest tests browser_tests container_tests` in dieser Umgebung | **313 passed** (125,29 s): 270 Unit/API + 37 Browser + 6 Container |
+| Ruff check/format, `uv lock --check`, `git diff --cached --check` | Erfolgreich |
+| Unabhängiges Backend-/HTTP-/Security-/Template-Review | Keine offenen Befunde; zusätzlich **50 passed** (0,38 s), Migrationen 1/2 per AST unverändert |
+| Visuelle Prüfung und zusätzlicher Browser-Grenzwertcheck | Mobil hell und Desktop dunkel geprüft; gültiger Maximalbetrag bei 320/390/1280 px ohne Seitenoverflow |
+| `detect-secrets==1.5.0 scan --no-verify` | Keine Funde in vorgemerkten oder bereits versionierten Dateien |
+
+In der frischen Gesamtsuite waren gesetzt:
+`LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium` und
+`LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt`.
+Das CA-Bundle wird nur als BuildKit-Secret verwendet; TLS bleibt geprüft.
+
+Die 40 Servicefälle prüfen atomare Normalbuchungen, Audit-/Zuordnungsrollback,
+Anfangs-/Stichtag-/Archiv-/Zukunftssalden, positive Einzelwerte und Aggregate
+über int64 hinaus, parallelen Replay-Schutz sowie v2→v3 mit Datenerhalt.
+Zehn Schemafälle prüfen strikte Tabellen, Betrag-/Datum-/Kind-Constraints und
+Fremdschlüssel. 33 HTTP-Fälle prüfen Root/Präfix, Eingabefehler, Werterhalt,
+Notiz-Escaping, Datumdefault, CSRF/Ingress und Replay-Konflikt.
+
+Neun neue Browserfälle prüfen Mobil/Desktop, Hell/Dunkel und Root/Präfix
+sowie simuliertes HA-Ingress mit nativem Null-Origin. Die Rechnung
+`100,00 → 87,66 → 87,67 €`, Zukunftsausschluss, Fehlereingabe, Werterhalt und
+Reload wurden tatsächlich bedient. Bisherige Browser-/API-Fälle bleiben grün.
+
+Container werden vor Start mit dem aktuellen Test-Image synthetisch auf
+Schema 2 mit Konto, Kategorie und Audit vorbereitet. Der Start migriert auf 3;
+Bestandsdaten bleiben erhalten. Echte TCP-POSTs prüfen Token-/Peer-Abweisung,
+einmalige Speicherung samt Zuordnung/Audit, Replay-Konflikt sowie erhaltene
+Buchung und berechneten Saldo nach Restart und kompletter Neuerstellung.
+Das ist ein Schema-Upgrade, kein nachgewiesener Wechsel alter/neuer HA-Images.
+
+### Behobene Prüfprobleme und Datenschutz
+
+Die v1→v2-Test-Fixture setzt nun ihre historische Registry ausdrücklich ein;
+neue Tests prüfen das aktuelle Schema 3. Der alte Browser-Notiz-Locator wurde
+durch das zusätzliche Buchungsnotizfeld mehrdeutig und auf exakte Beschriftung
+präzisiert. Ein Betrag-/Euro-Zeilenumbruch wurde in derselben Etappe korrigiert.
+Lint-/Formatfehler und ein falsch platzierter Container-Testabschnitt wurden
+vor dem grünen Abschlusslauf behoben.
+
+Der erste Containeraufbau scheiterte mit Docker-Startcode 125. Ungenutzte
+Cache-Einträge unserer früheren Test-Builds wurden anhand ihrer konkreten IDs
+bereinigt; keine pauschale Bereinigung fremder Ressourcen. Der Testharness
+meldet Startfehler nun mit Docker-stderr. Danach waren sowohl der separate
+Containerlauf als auch die frische Gesamtsuite erfolgreich.
+
+Vorgemerkten Diff manuell geprüft und Secret-Scan ohne externe Verifikation
+ausgeführt. Keine persönlichen Daten, Zugangsdaten, Laufzeitdatenbanken oder
+Backups hinzugefügt; keine Datenbankdateien im Repository gefunden. Eigene
+Testcontainer, -volumes und -netze sind nach den Tests entfernt. Alle Testdaten,
+Screenshots und Logs bleiben im privaten temporären Arbeitsbereich.
+Keine bekannten offenen Fehler im lokal geprüften
+Umfang von Etappe 1.2.
+
+### Grenzen und Abschlusscheckliste
+
+Keine Mehrfachaufteilungen, Transfers, Refunds, Buchungsänderungen/Storno,
+Budgets oder weiteren Module aus Folgeetappen umgesetzt. Die neue Version
+0.0.5 ist noch nicht auf dem Nutzer-HA geprüft. Offen bleiben vollständige
+HA-Login-/Logout-/Restart-/AppArmor-Abnahme, ARM/Raspberry Pi und Safari/iOS.
+Die Nutzerbestätigung für 0.0.4 ersetzt diese Prüfungen nicht.
+
+- [x] Etappe 1.2 implementiert; Version 0.0.5 vorbereitet.
+- [x] Unit-/API-, Browser-, Migrations- und Containerregression ausgeführt.
+- [x] Nutzerbestätigung der 403-Korrektur aus 0.0.4 dokumentiert.
+- [ ] HA-Laufzeittest der neuen Buchungsfunktionen und weitere HA-/ARM-Abnahme.
+- [ ] Nutzerfreigabe für Etappe 1.3.

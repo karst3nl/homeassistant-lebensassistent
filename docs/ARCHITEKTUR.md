@@ -19,7 +19,8 @@ Diese Schichten beschreiben die **Zielstruktur**. Der tatsächlich implementiert
 `database/` enthält eine Connection-Factory, explizite Transaktionsgrenzen,
 eine unveränderliche Migrationsregistry und den Audit-Schreibhelfer. Migration 1
 legt `schema_migrations` und `audit_log` an; Migration 2 ergänzt in Etappe 1.1
-`accounts` und `categories`. Weitere Tabellen folgen in ihren jeweiligen Etappen.
+`accounts` und `categories`. Migration 3 ergänzt `transactions` und
+`transaction_splits` für Normalbuchungen. Weitere Tabellen folgen in ihren Etappen.
 
 Jede Verbindung aktiviert WAL, Fremdschlüssel, vollständige Synchronisierung
 und einen begrenzten Lock-Timeout. Migrationen beginnen vor dem Lesen der
@@ -59,9 +60,36 @@ bei doppeltem Origin, fremdem Peer oder fehlendem/falschem Token bleibt der
 Zugriff gesperrt. Die Antwortpolicy wird nicht abgeschwächt.
 
 `services/values.py` verarbeitet Eurotext ausschließlich mit Integerarithmetik.
-Integer-Cent bleiben im signierten SQLite-64-Bit-Bereich; negative Anfangssalden
+Gespeicherte Einzelbeträge bleiben als Integer-Cent im signierten
+SQLite-64-Bit-Bereich; negative Anfangssalden
 sind zulässig. Konto-/Kategorieeingaben verwenden strikt validierte DTOs.
-Es gibt noch keine Transaktionstabelle oder Geldbewegungen aus Etappe 1.2.
+## Einnahmen, Ausgaben und Salden (Etappe 1.2)
+
+`services/ledger.py` prüft aktive Konten und passende aktive Kategorien sowie
+ein Buchungsdatum ab Kontostart. `repositories/ledger.py` speichert Buchung und
+genau eine vollständige Kategoriezuordnung; deren gemeinsamer Audit-Snapshot
+liegt in derselben `BEGIN IMMEDIATE`-Transaktion. Mehrfachaufteilungen und
+weitere Buchungsarten werden noch nicht angeboten.
+
+Positive Einzelbeträge bleiben Integer-Cent im SQLite-int64-Bereich. Die Richtung
+ergibt sich aus Einnahme/Ausgabe. Salden werden aus `transactions` berechnet,
+ohne Split-JOIN oder gespeichertes Saldofeld. Ein SQL-Snapshot liefert die
+Bewegungen; Python-Integer vermeiden Overflow bei großen aggregierten Summen.
+Nur `posted` bis zum Stichtag zählt. Vor Kontoöffnung ist der Saldo unbekannt;
+archivierte Konten behalten ihre Historie. Zukünftige Daten sind zulässig,
+sichtbar markiert und bis dahin aus dem heutigen Saldo ausgeschlossen.
+
+Eine technische eindeutige `submission_id` verhindert doppelte Übermittlung
+derselben Formularanfrage. Identischer Inhalt liefert die vorhandene Buchung;
+abweichender Inhalt führt zum Konflikt. Die Prüfung erfolgt innerhalb derselben
+Schreibtransaktion vor erneuten Aktivitätsprüfungen. Ein frisches Formular
+erlaubt eine neue, bewusst auch inhaltlich gleiche Buchung. Die ID ersetzt
+weder CSRF-Token noch Ingress-Authentifizierung.
+
+`api/ledger.py` verarbeitet das servergerenderte Buchungsformular über dieselben
+begrenzten Form-/CSRF-Prüfungen. Datum ist standardmäßig heute in Europe/Berlin.
+Die Finanzansicht zeigt aktuelle Salden, Anfangssalden und die letzten 50
+Buchungen. Keine Änderungs-, Storno-, Transfer- oder Mehrfachsplit-Routen.
 
 ## Datenschutz / Betrieb
 - Alle privaten Laufzeitdaten bleiben unter HA-App-`/data` und werden niemals committet.

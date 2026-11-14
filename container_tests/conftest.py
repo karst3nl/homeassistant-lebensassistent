@@ -95,7 +95,7 @@ class DockerSandbox:
         assert result.returncode == 0, result.stderr[-4000:]
 
     def start_app(self) -> None:
-        self.docker(
+        started = self.docker(
             "run",
             "-d",
             "--name",
@@ -122,7 +122,9 @@ class DockerSandbox:
             "--mount",
             f"type=volume,src={self.volume},dst=/data",
             self.image,
+            check=False,
         )
+        assert started.returncode == 0, started.stderr
         self.wait_ready()
 
     def request(
@@ -189,12 +191,18 @@ from lebensassistent.integrations.homeassistant.runtime import (
 from lebensassistent.database.connection import Database, transaction
 from lebensassistent.database.migrations import MIGRATIONS, migrate
 from lebensassistent.database.audit import append_audit
+from lebensassistent.services.catalog import AccountInput, CatalogService, CategoryInput
 import os
 os.umask(0o077)
 prepare_data_directory(DATA_DIR)
 drop_privileges()
 database = Database(Path('/data/lebensassistent.sqlite3'))
-migrate(database, MIGRATIONS[:1])
+migrate(database, MIGRATIONS[:2])
+catalog = CatalogService(database)
+catalog.create_account(AccountInput(name='Synthetisches Upgrade-Konto',
+    account_type='checking', opening_balance_cents=10000, opening_date='2026-01-01'))
+catalog.create_category(CategoryInput(
+    name='Synthetische Upgrade-Kategorie', kind='income'))
 with database.connect() as connection, transaction(connection):
     append_audit(connection, entity_type='synthetic_upgrade', entity_id=1,
                  action='test', after={'label': 'synthetic prior audit'})

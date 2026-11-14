@@ -1,5 +1,5 @@
 name: Lebensassistent Alpha
-version: "0.0.4"
+version: "0.0.5"
 slug: lebensassistent
 description: Lokale Basisoberfläche für den persönlichen Lebensassistenten.
 url: https://github.com/karst3nl/homeassistant-lebensassistent/tree/alpha

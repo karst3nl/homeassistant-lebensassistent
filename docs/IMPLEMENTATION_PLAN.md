@@ -1,6 +1,6 @@
 # Implementierungsplan — ausschließlich Branch `alpha`
 
-Status: Etappen 0.1 bis 0.4 und 1.1 lokal umgesetzt; App-Version 0.0.4 mit Korrektur des gemeldeten Formular-403 unter Ingress. Installation/Sichtprüfung von 0.0.1 auf HA vom Nutzer bestätigt; Korrektur-/Security-/ARM-Abnahme auf HA weiter offen. Etappe 1.2 wartet auf Nutzerfreigabe. Prüfergebnisse: [PROGRESS.md](PROGRESS.md). Quelle: [Pflichtenheft](PFLICHTENHEFT.md) und [AGENTS.md](../AGENTS.md).
+Status: Etappen 0.1 bis 0.4 und 1.1 bis 1.2 lokal umgesetzt; App-Version 0.0.5 mit Einnahmen, Ausgaben und berechneten Kontosalden. Installation/Sichtprüfung von 0.0.1 und 403-Korrektur von 0.0.4 auf HA vom Nutzer bestätigt; neue Buchungsfunktionen und vollständige Security-/ARM-Abnahme auf HA weiter offen. Etappe 1.3 wartet auf Nutzerfreigabe. Prüfergebnisse: [PROGRESS.md](PROGRESS.md). Quelle: [Pflichtenheft](PFLICHTENHEFT.md) und [AGENTS.md](../AGENTS.md).
 
 ## Verbindlicher Entwicklungsmodus
 Eine Etappe besteht aus: Anforderung lesen → Mini-Design/Tests definieren → klein implementieren → Unit/API-Tests → Regression → Datenschutz-Review → Dokumentation/Commit auf `alpha` → **anhalten und Freigabe abwarten**. Keine parallele Großimplementierung. `main` nie verändern.

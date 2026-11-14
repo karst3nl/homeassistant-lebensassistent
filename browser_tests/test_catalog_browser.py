@@ -30,7 +30,7 @@ def test_account_and_category_forms(
     try:
         page.goto(f"{server_url}{prefix}/bereiche/finanzen")
         expect(
-            page.get_by_role("heading", name="Konten & Kategorien", exact=True)
+            page.get_by_role("heading", name="Konten & Buchungen", exact=True)
         ).to_be_visible()
         page.get_by_label("Kontoname", exact=True).fill(name)
         page.get_by_label("Kontoart", exact=True).select_option("checking")
@@ -87,7 +87,7 @@ def test_names_and_notes_cannot_execute_script(
         note = "<script>window.syntheticInjected = true</script>"
         page.get_by_label("Kontoname", exact=True).fill(name)
         page.get_by_label("Anfangssaldo in EUR", exact=True).fill("0,01")
-        page.get_by_label("Notiz (optional)").fill(note)
+        page.get_by_label("Notiz (optional)", exact=True).fill(note)
         page.get_by_role("button", name="Konto anlegen", exact=True).click()
         expect(page.get_by_role("article", name=name, exact=True)).to_contain_text(note)
         assert page.evaluate("typeof window.syntheticInjected") == "undefined"

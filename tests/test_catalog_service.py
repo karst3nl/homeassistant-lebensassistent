@@ -146,7 +146,8 @@ def test_upgrade_from_v1_preserves_existing_audit(tmp_path: Path) -> None:
     migrate(database, MIGRATIONS[:1])
     with database.connect() as connection, transaction(connection):
         append_audit(connection, entity_type="synthetic", entity_id=1, action="test")
-    assert migrate(database) == 2
+    # Preserve the historical v1 -> v2 upgrade regression.
+    assert migrate(database, MIGRATIONS[:2]) == 2
     with database.connect() as connection:
         assert (
             connection.execute(

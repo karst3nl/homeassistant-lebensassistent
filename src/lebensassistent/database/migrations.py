@@ -87,6 +87,48 @@ MIGRATIONS = (
             "CREATE INDEX category_parent ON categories(parent_id)",
         ),
     ),
+    Migration(
+        3,
+        "income_and_expense_postings",
+        (
+            """CREATE TABLE transactions (
+                id INTEGER PRIMARY KEY,
+                account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+                kind TEXT NOT NULL CHECK(kind IN ('income', 'expense')),
+                amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+                booked_date TEXT NOT NULL CHECK(
+                    booked_date BETWEEN '0001-01-01' AND '9999-12-31'
+                    AND booked_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+                    AND COALESCE(date(booked_date, '+0 days') = booked_date, 0)),
+                description TEXT
+                    CHECK(description IS NULL OR length(description) <= 2000),
+                status TEXT NOT NULL DEFAULT 'posted'
+                    CHECK(status IN ('posted', 'voided')),
+                origin TEXT NOT NULL DEFAULT 'manual' CHECK(origin = 'manual'),
+                void_reason TEXT,
+                submission_id TEXT NOT NULL UNIQUE CHECK(
+                    length(submission_id) = 32
+                    AND submission_id NOT GLOB '*[^0-9a-f]*'),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            ) STRICT""",
+            """CREATE TABLE transaction_splits (
+                id INTEGER PRIMARY KEY,
+                transaction_id INTEGER NOT NULL
+                    REFERENCES transactions(id) ON DELETE RESTRICT,
+                category_id INTEGER NOT NULL
+                    REFERENCES categories(id) ON DELETE RESTRICT,
+                amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+                memo TEXT,
+                sort_order INTEGER NOT NULL DEFAULT 0 CHECK(sort_order >= 0),
+                created_at TEXT NOT NULL,
+                UNIQUE(transaction_id, sort_order)
+            ) STRICT""",
+            "CREATE INDEX transaction_account_date "
+            "ON transactions(account_id, booked_date, id)",
+            "CREATE INDEX split_category ON transaction_splits(category_id)",
+        ),
+    ),
 )
 
 

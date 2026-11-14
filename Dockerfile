@@ -10,7 +10,7 @@ RUN uv sync --locked --no-dev --no-editable --python /usr/local/bin/python --no-
 
 FROM python-base AS runtime
 ARG BUILD_ARCH=amd64
-ARG BUILD_VERSION=0.0.4
+ARG BUILD_VERSION=0.0.5
 LABEL io.hass.name="Lebensassistent Alpha" \
       io.hass.description="Lokaler Lebensassistent mit Ingress" \
       io.hass.type="addon" \

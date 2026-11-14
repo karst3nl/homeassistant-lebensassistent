@@ -3,16 +3,16 @@
 {% block content %}
 <div class="page-heading">
   <p class="eyebrow">DEINE FINANZEN</p>
-  <h1>Konten &amp; Kategorien</h1>
-  <p>Deine Konten anlegen, Anfangssalden festhalten und Kategorien vorbereiten.</p>
-  <p class="field-help">Buchungen sind noch nicht verfügbar.</p>
+  <h1>Konten &amp; Buchungen</h1>
+  <p>Deine Einnahmen und Ausgaben erfassen und Kontosalden im Blick behalten.</p>
 </div>
 {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
 {% if errors.get('global') %}<p class="form-error" role="alert">{{ errors['global'] }}</p>{% endif %}
 {% if not db_available %}
 <section class="empty-state"><h2>Kontoverwaltung derzeit nicht verfügbar</h2><p>Bitte versuche es später erneut.</p></section>
 {% else %}
-<nav class="page-tabs" aria-label="Finanzbereiche"><a href="#konten">Konten</a><a href="#kategorien">Kategorien</a></nav>
+<nav class="page-tabs" aria-label="Finanzbereiche"><a href="#buchungen">Buchungen</a><a href="#konten">Konten</a><a href="#kategorien">Kategorien</a></nav>
+{% include "bookings.html" %}
 <section id="konten" aria-labelledby="accounts-title" class="catalog-section">
   <div class="section-heading"><div><p class="eyebrow">DEIN GELD IM BLICK</p><h2 id="accounts-title">Deine Konten</h2></div></div>
   <div class="finance-layout">
@@ -20,7 +20,7 @@
       {% for account in accounts %}
       <article class="record-card{% if not account.is_active %} archived{% endif %}" aria-labelledby="account-{{ account.id }}">
         <div class="record-heading"><div><span class="record-kind">{{ account_types[account.account_type] }}</span><h3 id="account-{{ account.id }}">{{ account.name }}</h3></div><span class="status-badge">{{ 'Aktiv' if account.is_active else 'Archiviert' }}</span></div>
-        <dl class="record-facts"><div><dt>Anfangssaldo</dt><dd class="amount">{{ account.opening_balance_cents | eur }}</dd></div><div><dt>Startdatum</dt><dd>{{ account.opening_date | local_date }}</dd></div></dl>
+        <dl class="record-facts"><div><dt>Saldo zum {{ as_of | local_date }}</dt><dd class="amount">{% if balances.get(account.id) is not none %}{{ balances[account.id] | eur }}{% else %}Noch nicht gestartet{% endif %}</dd></div><div><dt>Anfangssaldo</dt><dd>{{ account.opening_balance_cents | eur }}</dd></div><div><dt>Startdatum</dt><dd>{{ account.opening_date | local_date }}</dd></div></dl>
         {% if account.notes %}<p class="record-note">{{ account.notes }}</p>{% endif %}
         <form action="{{ url_for('account_status', entity_id=account.id) }}" method="post" class="status-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -56,7 +56,7 @@
   </div>
 </section>
 <section id="kategorien" aria-labelledby="categories-title" class="catalog-section">
-  <div class="section-heading"><div><p class="eyebrow">ORDNUNG FÜR SPÄTERE BUCHUNGEN</p><h2 id="categories-title">Deine Kategorien</h2></div></div>
+  <div class="section-heading"><div><p class="eyebrow">ORDNUNG FÜR DEINE BUCHUNGEN</p><h2 id="categories-title">Deine Kategorien</h2></div></div>
   <div class="finance-layout">
     <div class="record-list">
       {% for category in categories %}

@@ -82,7 +82,7 @@ main:focus { outline: none; }
 .error-state { margin-top: 16px; }
 .error-state h1 { font-size: 2rem; }
 footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: auto; padding: 20px 40px; border-top: 1px solid var(--line); font-size: .7rem; color: var(--muted); }
-.page-tabs { display: flex; gap: 10px; margin: 0 0 30px; }
+.page-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 30px; }
 .page-tabs a { padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px; color: var(--accent); background: var(--surface); font-size: .85rem; }
 .catalog-section { margin-bottom: 40px; scroll-margin-top: 20px; }
 .finance-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; gap: 24px; }
@@ -91,8 +91,10 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8p
 .record-card, .empty-records { overflow-wrap: anywhere; }
 .record-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
 .record-heading h3 { font-size: 1.1rem; margin-top: 4px; }
+.record-heading > .amount { white-space: nowrap; flex-shrink: 0; }
 .record-kind, .status-badge { color: var(--muted); font-size: .7rem; }
 .status-badge { padding: 3px 8px; border-radius: 5px; background: var(--accent-soft); white-space: nowrap; }
+.record-card > .status-badge { white-space: normal; }
 .archived { border-style: dashed; }
 .record-facts { display: flex; flex-wrap: wrap; gap: 16px 36px; margin: 22px 0 0; }
 .record-facts dt { color: var(--muted); font-size: .75rem; }

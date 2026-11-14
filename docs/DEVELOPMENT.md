@@ -73,7 +73,7 @@ hat keine HA-Anmeldung und bleibt ausschließlich auf Loopback.
 
 Die Oberfläche ist unter **http://127.0.0.1:8000/** erreichbar. Sie bietet eine
 Übersicht und sieben weitere navigierbare Modulbereiche. Unter „Konten &
-Buchungen“ sind mit Datenbank jetzt Konten und Kategorien bedienbar; die
+Buchungen“ sind mit Datenbank Konten, Kategorien und Normalbuchungen bedienbar; die
 übrigen Bereiche bleiben Platzhalter.
 Alle Texte, Styles und Icons werden lokal ausgeliefert; JavaScript und externe
 Fonts/CDNs sind nicht erforderlich. Die Navigation funktioniert auch mit
@@ -102,12 +102,13 @@ privaten Pfad ausdrücklich erneut verwenden. Der Pfad muss absolut sein;
 fehlende Elternverzeichnisse werden nicht automatisch angelegt.
 
 Der CLI-Befehl initialisiert oder aktualisiert die Datei und meldet aktuell
-`Database ready; schema version 2`. Der Server führt dieselbe Prüfung vor dem
+`Database ready; schema version 3`. Der Server führt dieselbe Prüfung vor dem
 ersten HTTP-Zugriff erneut idempotent aus. In HA ist der Pfad unabhängig von
 dieser Entwicklungsvariable fest auf `/data/lebensassistent.sqlite3` gesetzt.
 
-Aktuell gibt es `schema_migrations`, `audit_log`, `accounts` und `categories`.
-Migration 1 bleibt unverändert, Migration 2 ergänzt die beiden Fachtabellen. Neue Verbindungen
+Aktuell gibt es `schema_migrations`, `audit_log`, `accounts`, `categories`,
+`transactions` und `transaction_splits`. Migrationen 1 und 2 bleiben unverändert;
+Migration 3 ergänzt die Buchungstabellen. Neue Verbindungen
 prüfen WAL und Fremdschlüssel, verwenden `synchronous=FULL` und einen
 Lock-Timeout von fünf Sekunden. Schreibvorgänge verwenden explizite
 Transaktionen; Audit-Einträge dürfen nur innerhalb derselben aktiven
@@ -119,11 +120,12 @@ geänderten Migrationen bricht der Start ab. Es gibt keinen automatischen
 Reset auf eine leere Datenbank. SQLite-UPDATE/DELETE auf Audit-Einträgen sind
 gesperrt; das ist kein Schutz gegen administrativen Dateizugriff.
 
-### Konten und Kategorien (Etappe 1.1, Version 0.0.4)
+### Konten, Kategorien und Buchungen (bis Etappe 1.2, Version 0.0.5)
 
 Mit dem oben konfigurierten Datenbankstart
 **http://127.0.0.1:8000/bereiche/finanzen** öffnen. Dort lassen sich Konten und
-Kategorien anlegen, archivieren und wieder aktivieren. Die Testanleitung steht
+Kategorien anlegen, archivieren und wieder aktivieren sowie Einnahmen und
+Ausgaben erfassen. Die Testanleitung steht
 in [DOCS.md](../DOCS.md). Ohne expliziten lokalen Datenpfad bleiben die
 Schreibfunktionen nicht verfügbar; eine Repository-Datenbank wird nicht erzeugt.
 
@@ -131,7 +133,18 @@ Eurotext wird nur mit Integerarithmetik in Cent umgewandelt. Komma oder Punkt
 als Dezimalzeichen, maximal zwei Nachkommastellen, keine Gruppierung oder
 Exponenten. Beide signierten SQLite-int64-Grenzen und negative Anfangssalden
 werden geprüft. Öffnungsdatum und Anfangssaldo sind nach Anlage nicht frei
-änderbar. Es gibt noch keine Buchungen, Transfers oder laufende Saldenberechnung.
+änderbar. Normalbuchungen erhalten eine vollständige Kategoriezuordnung.
+Betrag positiv, Kategorie passend und aktiv, Konto aktiv, Datum ab Kontoöffnung;
+Datum standardmäßig heute in Europe/Berlin, Notiz optional. Buchung, Zuordnung
+und Audit werden atomar gespeichert. Die technische eindeutige Formular-ID
+verhindert doppelte Übermittlung; gleiche ID mit anderem Inhalt ergibt 409.
+
+Aktuelle Kontosalden stammen ausschließlich aus Anfangssaldo und `posted`-
+Bewegungen bis heute, berechnet mit Python-Integern aus einem SQL-Snapshot.
+Zukünftige Datierungen sind sichtbar gekennzeichnet und zählen erst ab ihrem
+Datum; vor Kontoöffnung kein Saldo. Archivierte Historie bleibt erhalten.
+Die Liste zeigt die letzten 50 Einträge. Noch keine Mehrfachaufteilungen,
+Transfers, Rückerstattungen oder Buchungsänderung/Stornierung.
 
 Die Formulare verwenden normale HTML-POSTs, keinen JavaScript-Client und keine
 zusätzliche JSON-API. Ein zufälliger CSRF-Token pro App-Instanz ist zwingend;
@@ -163,7 +176,7 @@ uv run --locked ruff format --check .
 uv lock --check
 ```
 
-pytest prüft **187 Unit-/API-Tests ohne Browser oder Docker**:
+pytest prüft **270 Unit-/API-Tests ohne Browser oder Docker**:
 
 - `GET /health`: HTTP 200, JSON-Content-Type und exakte Antwort.
 - `POST /health` mit synthetischem Inhalt: HTTP 405; Health bleibt unverändert.
@@ -193,6 +206,11 @@ pytest prüft **187 Unit-/API-Tests ohne Browser oder Docker**:
   Body-/Encoding-Grenzfälle. Unzulässige Anfragen ändern keine Konten/Audits.
 - HA-Formular-POSTs mit `Origin: null` nur hinter verifiziertem Ingress und
   gültigem Token; die Angriffsvarianten bleiben ohne DB-/Auditänderung.
+- Normalbuchungen, vollständige Kategoriezuordnung, Audit-/Zuordnungsrollback,
+  Upgrade von Schema 2 auf 3 mit Datenerhalt, Stichtag-/Archiv-/Zukunftssalden,
+  Cent-Präzision und Aggregationen über den SQLite-int64-Bereich hinaus.
+- Formular-Werterhalt, Schutz des neuen POSTs, Replay/Konflikte und parallele
+  Übermittlung derselben Buchungsanfrage ohne Doppelanlage.
 
 Die ursprünglichen Migration-1-/Audit-Grundlagentests laufen weiterhin mit
 expliziter v1-Registry; separate Tests prüfen die neue produktive Registry.
@@ -222,8 +240,8 @@ uv run --group browser --locked pytest browser_tests
 uv run --group browser --locked pytest tests browser_tests
 ```
 
-Der erste Befehl führt **28 Browsertests** aus, der zweite die API-/Browser-
-Suite mit **215 Tests**. Die Browserprüfungen starten selbst
+Der erste Befehl führt **37 Browsertests** aus, der zweite die API-/Browser-
+Suite mit **307 Tests**. Die Browserprüfungen starten selbst
 einen lokalen Uvicorn-Prozess auf einem freien Loopback-Port und beenden ihn
 anschließend. Sie prüfen 320/390/768/1280 Pixel, beide Themes, alle
 Navigationsziele, Tastatur-Sprunglink, Seitenoverflow, Asset-/Konsolenfehler,
@@ -243,6 +261,11 @@ setzt den simulierten Supervisor-Peer ausschließlich im Browser-Testserver;
 Produktivcode und echte TCP-Peer-Prüfung bleiben separat durch API-/Docker-
 Tests abgesichert. Das ist keine Prüfung der HA-Anmeldung oder einer echten
 Home-Assistant-Installation.
+
+Neun weitere Abläufe erfassen Einnahmen/Ausgaben bei Mobil-/Desktopbreite,
+hell/dunkel und Root/Präfix sowie im simulierten HA-Ingress mit Null-Origin.
+Sie prüfen `100,00 → 87,66 → 87,67 €`, Zukunftsausschluss, ungültige Beträge,
+Werterhalt samt Formular-ID, Notiz-Escaping und Persistenz nach Reload.
 
 Alternativ kann ein vorhandenes Chromium verwendet werden (in dieser
 Cloud-Umgebung tatsächlich mit Chromium **156.0.8078.79** geprüft):
@@ -289,7 +312,7 @@ docker build --build-arg BUILD_ARCH=amd64 -t lebensassistent:alpha .
 uv run --locked pytest container_tests
 ```
 
-Die **5 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
+Die **6 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
 UUID-benannte Testcontainer, ein privates Volume und ein internes Testnetz
 mit Subnetz `172.30.32.0/24`. Der Entwicklungs-Dockerdaemon muss dieses Netz
 frei haben. Es werden keine Hostports geöffnet. Ein Client mit TCP-Adresse
@@ -298,10 +321,11 @@ und Header-Fälschungen. Die Tests prüfen tatsächliche Prozessrechte, `/data`,
 geordnete Stop-/Start-/Restart-Vorgänge und synthetische Persistenz bis zur
 Container-Neuerstellung. Dabei werden zusätzlich DB-Integrität, WAL/FK und
 Audit-/Migrationshistorie nach dem Neustart geprüft. Vor dem App-Start wird
-synthetisch Schema 1 mit einem Test-Audit angelegt; der Start migriert auf
-Schema 2 und erhält die Historie. Das ist ein Schema-Upgrade, kein behaupteter
+synthetisch Schema 2 mit Konto, Kategorie und Test-Audit angelegt; der Start
+migriert auf Schema 3 und erhält die Historie. Das ist ein Schema-Upgrade, kein behaupteter
 Wechsel zwischen zwei alten/neuen Containerimages. Echte TCP-POSTs prüfen
-Konten/Kategorien, CSRF-/Peer-Abweisung und Persistenz über Restart/Neuerstellung.
+Konten/Kategorien/Buchungen, CSRF-/Peer-Abweisung, Replay und Persistenz von
+Buchungen und berechneten Salden über Restart/Neuerstellung.
 Die SQLite-Datei unter
 `/data` hat UID/GID 1000 und Modus 0600. Anschließend werden nur die eigenen Testressourcen
 entfernt. Build- und Serverlogs liegen im temporären pytest-Verzeichnis.
@@ -328,14 +352,15 @@ Vollständige lokale Regression mit Browser **und** Docker:
 uv run --group browser --locked pytest tests browser_tests container_tests
 ```
 
-Das sind **220 Tests**. In dieser Cloud-Umgebung werden zusätzlich
+Das sind **313 Tests**. In dieser Cloud-Umgebung werden zusätzlich
 `LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium` und
 `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt` gesetzt.
 Paket-/Image-Downloads sind nur für Einrichtung und Build erforderlich.
 Der Container-Test selbst läuft in einem internen Netz ohne externe Dienste.
 
 Die Installation und erste Sichtprüfung von 0.0.1 auf HA wurden vom Nutzer
-bestätigt. Die Bestätigung der 403-Korrektur in 0.0.4, Sessionprüfung,
+bestätigt; auch die erfolgreiche 403-Korrektur aus 0.0.4 wurde bestätigt.
+Die neuen Buchungsfunktionen von 0.0.5, vollständige Sessionprüfung,
 HA-Restart, AppArmor-Einbindung und der ARM-Nachweis sind weiterhin offen.
 Für die HA-Prüfung ausschließlich die Repository-URL
 mit **`#alpha`** aus [DOCS.md](../DOCS.md) verwenden. Der hier verfügbare
@@ -365,13 +390,14 @@ src/lebensassistent/
         ui.py                       # HTML-Seiten, lokale URLs und Fehlerseiten
         views.py                    # gemeinsames Rendering/Formatierung
         catalog.py                  # Konten-/Kategorienformulare
+        ledger.py                   # normale Einnahmen-/Ausgabenformulare
         forms.py                    # CSRF, Authority und begrenztes Form-Parsing
     frontend/
         templates/                  # Basis, Übersicht, Platzhalter, Fehlerseite
         static/                     # lokales CSS und SVG-Icon
     integrations/homeassistant/     # Ingress-Schutz und fester HA-Entrypoint
     database/                       # Connections, Migrationen, Audit und CLI
-    services/                       # Konten/Kategorien und Cent-/Datumswerte
+    services/                       # Konten/Kategorien, Buchungen, Salden und Werte
     repositories/                   # parametrisierter Katalog-Datenzugriff
 tests/
     test_health.py                  # Health-Vertrag
@@ -392,4 +418,4 @@ docs/                               # verbindliche Vorgaben und Ergebnisse
 ```
 
 Weitere Schichten aus `ARCHITEKTUR.md` werden erst in ihrer jeweiligen Etappe
-angelegt. Etappe 1.2 beginnt ausschließlich nach ausdrücklicher Freigabe.
+angelegt. Etappe 1.3 beginnt ausschließlich nach ausdrücklicher Freigabe.

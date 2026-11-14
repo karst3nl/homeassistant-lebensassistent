@@ -1,8 +1,7 @@
 """Schlanke Formular-Endpunkte; Fachregeln bleiben in den Services."""
 
 import sqlite3
-from datetime import datetime
-from zoneinfo import ZoneInfo
+import uuid
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
@@ -16,6 +15,7 @@ from lebensassistent.services.catalog import (
     CatalogService,
     CategoryInput,
 )
+from lebensassistent.services.ledger import LedgerService, today_berlin
 from lebensassistent.services.values import parse_eur
 
 router = APIRouter()
@@ -29,6 +29,7 @@ NOTICES = {
     "account-created": "Konto angelegt.",
     "category-created": "Kategorie angelegt.",
     "status-saved": "Status gespeichert.",
+    "transaction-created": "Buchung gespeichert.",
 }
 
 
@@ -42,10 +43,16 @@ def service(request: Request) -> CatalogService:
 def finance_context(request: Request) -> dict:
     available = hasattr(request.app.state, "database")
     catalog = service(request) if available else None
+    ledger = LedgerService(catalog.database) if catalog else None
+    current_date = today_berlin()
+    today = current_date.isoformat()
     return {
         "db_available": available,
         "accounts": catalog.accounts() if catalog else [],
         "categories": catalog.categories() if catalog else [],
+        "transactions": ledger.transactions() if ledger else [],
+        "balances": ledger.balances(current_date) if ledger else {},
+        "as_of": today,
         "csrf_token": request.app.state.csrf_token,
         "account_types": ACCOUNT_TYPES,
         "notice": NOTICES.get(request.query_params.get("notice", "")),
@@ -55,12 +62,19 @@ def finance_context(request: Request) -> dict:
                 "name": "",
                 "account_type": "checking",
                 "opening_balance": "0,00",
-                "opening_date": datetime.now(ZoneInfo("Europe/Berlin"))
-                .date()
-                .isoformat(),
+                "opening_date": today,
                 "notes": "",
             },
             "category": {"name": "", "kind": "expense", "parent_id": ""},
+            "transaction": {
+                "submission_id": uuid.uuid4().hex,
+                "kind": "expense",
+                "account_id": "",
+                "category_id": "",
+                "amount": "",
+                "booked_date": today,
+                "description": "",
+            },
         },
     }
 

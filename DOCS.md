@@ -1,12 +1,13 @@
 # Lebensassistent Alpha — HA-App
 
 Experimentelle Basisoberfläche mit Navigation, automatischem Browser-Theme und
-Health-Endpunkt. Version **0.0.4** bietet die ersten bedienbaren Konten- und
-Kategorienmasken mit SQLite und Audit. Buchungen, Projekte und Erinnerungen
+Health-Endpunkt. Version **0.0.5** bietet Konten, Kategorien, Einnahmen und
+Ausgaben mit berechneten Kontosalden, SQLite und Audit. Projekte und Erinnerungen
 sind noch nicht implementiert. Die Verpackung wurde lokal mit Docker auf **amd64** geprüft.
 Der Nutzer hat die Installation und erste Sichtprüfung von **0.0.1** auf seinem
-Home Assistant bestätigt. **Die 403-Korrektur auf HA, vollständige HA-Security-/
-Restart-Prüfungen und ARM-Nachweise stehen noch aus.**
+Home Assistant bestätigt; auch die 403-Korrektur von 0.0.4 wurde bestätigt.
+**Die neuen Buchungsfunktionen auf HA, vollständige HA-Security-/Restart-
+Prüfungen und ARM-Nachweise stehen noch aus.**
 
 ## Installation zur HA-Prüfung
 
@@ -25,30 +26,29 @@ Nach Aktualisierung des Stores **Lebensassistent Alpha** installieren, starten
 und **Weboberfläche öffnen** wählen. Die Seitenleiste ist für Administratoren
 konfiguriert. Automatischer Start ist zunächst ausgeschaltet, kann in HA
 aktiviert werden. Diese Schritte sind die Anleitung für den noch offenen
-weiteren HA-Abnahmetest; die bisherige Nutzerbestätigung umfasst Installation
+weiteren HA-Abnahmetest; die Nutzerbestätigung zu 0.0.1 umfasst Installation
 und erste Sichtprüfung von 0.0.1.
 
-## Update von 0.0.1 bis 0.0.3 auf 0.0.4
+## Update von 0.0.1 bis 0.0.4 auf 0.0.5
 
 Die Repositories im App-Store aktualisieren und das angebotene Update auf
-**0.0.4** installieren. Der Branch bleibt **`#alpha`**. Die Datenbank wird beim
-Start auf Schema 2 gebracht. Bestehende Audit-Daten bleiben erhalten;
-bestehende Konten und Kategorien aus 0.0.3 bleiben erhalten. Bei älteren
-Versionen werden die Konten-/Kategorientabellen leer angelegt. Es werden keine
+**0.0.5** installieren. Der Branch bleibt **`#alpha`**. Die Datenbank wird beim
+Start auf Schema 3 gebracht. Bestehende Konten, Kategorien und Audit-Daten
+bleiben erhalten; die Buchungstabellen starten leer. Es werden keine
 Beispieldaten angelegt.
 
 Nach dem Update Start, Weboberfläche und einen Restart auf HA prüfen. Version
-0.0.4 wurde lokal gebaut und auf Bedienung, Start und Persistenz geprüft; das Update auf
+0.0.5 wurde lokal gebaut und auf Bedienung, Start und Persistenz geprüft; das Update auf
 dem HA-System steht noch aus.
 
-Version 0.0.4 korrigiert den gemeldeten **403 beim Kontoanlegen** unter Ingress.
+Die in 0.0.4 korrigierte **403-Prüfung beim Kontoanlegen** bleibt enthalten.
 Nach dem Update die alte Add-on-Weboberfläche schließen und über Home Assistant
 frisch öffnen. Die Korrektur gilt auch für Kategorien und Archivieren/Aktivieren.
-Eine Bestätigung auf dem HA-System steht noch aus.
+Der Nutzer hat diese Korrektur auf HA bestätigt.
 
 ## Erste Funktionen testen
 
-Im Menü **Konten & Buchungen** sind jetzt **Konten & Kategorien** verfügbar.
+Im Menü **Konten & Buchungen** sind Konten, Kategorien und Buchungen verfügbar.
 Für die Alpha-Prüfung ausschließlich synthetische Daten verwenden:
 
 1. Unter **Neues Konto** einen Testnamen, eine Kontoart, einen Anfangssaldo und
@@ -63,15 +63,36 @@ Für die Alpha-Prüfung ausschließlich synthetische Daten verwenden:
 5. Auch Kategorien archivieren/aktivieren. Aktive Unterkategorien müssen zuerst
    archiviert werden; eine Unterkategorie kann erst nach ihrer Oberkategorie
    wieder aktiviert werden.
-6. Seite neu laden und die App in HA neu starten; Testeinträge sollten erhalten
-   bleiben. Das ist auf dem HA-System noch zu bestätigen.
+6. Unter **Neue Buchung** eine Ausgabe mit Konto, aktiver Ausgabenkategorie
+   und positivem Betrag eingeben. Das Buchungsdatum ist standardmäßig heute;
+   eine Notiz ist optional. **Buchung speichern** wählen.
+7. Mit einem Testkonto mit Anfangssaldo `100,00` ergibt eine Ausgabe `12,34`
+   den Saldo `87,66 €`. Eine anschließende Einnahme `0,01` mit passender
+   Einnahmenkategorie ergibt `87,67 €`. Beide Buchungen ab dem Kontostart und
+   spätestens heute datieren. Konto und Anfangssaldo bleiben unverändert.
+8. Einträge mit zukünftigem Buchungsdatum werden gekennzeichnet und erst ab
+   ihrem Datum in den aktuellen Saldo einbezogen. Sie sind keine Budgetplanung.
+   Vor dem Kontostart sind keine Buchungen möglich; davor gibt es keinen Saldo.
+9. Seite neu laden und die App in HA neu starten; Testeinträge und berechnete
+   Salden sollten erhalten bleiben. Das ist auf dem HA-System noch zu bestätigen.
 
 Die Masken zeigen Validierungsfehler an und behalten eingegebene Werte zur
 Korrektur. Bei einem falschen Anfangssaldo kann das Testkonto in dieser Version
 archiviert und neu angelegt werden; eine direkte Saldoänderung ist nicht
 vorgesehen. Es gibt noch keine Bearbeitung von Namen/Notizen, keine Löschung
-und keine Buchungserfassung. Die angezeigten Werte sind **Anfangssalden**,
-noch keine aus Buchungen berechneten Kontostände.
+und keine nachträgliche Buchungsänderung oder Stornierung. Die Konten zeigen
+den berechneten **Saldo zum heutigen Datum** und den unveränderlichen
+Anfangssaldo getrennt. Die Liste zeigt die letzten 50 Buchungen, sortiert nach
+Buchungsdatum. Archivierte Konten/Kategorien behalten ihre Buchungshistorie;
+für neue Buchungen müssen sie aktiv sein. Kategorien müssen zur Buchungsart passen.
+
+Buchungsbeträge sind stets positiv; Einnahme oder Ausgabe bestimmt die Richtung.
+Ein normales Formular ordnet den gesamten Betrag genau einer Kategorie zu.
+Mehrfachaufteilungen, Umbuchungen, Rückerstattungen und Stornierungen kommen
+erst in späteren Etappen. Wiederholte Übermittlung desselben Formulars wird
+nur einmal gespeichert. Ein frisch geladenes Formular erlaubt eine neue,
+bewusst auch inhaltlich gleiche Buchung. Bei einem Formular-Konflikt die Seite
+neu laden.
 
 Nach Update oder Neustart alte offene Formularseiten neu laden. Sollte eine
 alte Seite „Anfrage nicht zulässig“ anzeigen, neu laden und erneut versuchen.
@@ -127,7 +148,7 @@ Auf einem Entwicklungs-HA-System ausschließlich synthetische Daten verwenden:
 6. Datenbank und Migrationshistorie nach Update und Restart prüfen, ohne private
    Daten zu verwenden. Den ARM-Build und Betrieb auf dem Zielgerät prüfen.
 
-Ergebnisse in `docs/PROGRESS.md` ergänzen. Etappe 1.2 beginnt erst nach
+Ergebnisse in `docs/PROGRESS.md` ergänzen. Etappe 1.3 beginnt erst nach
 ausdrücklicher Nutzerfreigabe.
 
 ## Lokale Entwicklung und Fehlerdiagnose
