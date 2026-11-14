@@ -814,6 +814,15 @@ Screenshots und Logs bleiben im privaten temporären Arbeitsbereich.
 Keine bekannten offenen Fehler im lokal geprüften
 Umfang von Etappe 1.2.
 
+### Commitnachweis
+
+Implementierung, Tests, Version 0.0.5 und Prüfprotokoll sind auf `alpha` im Commit
+[`284a890f9ea9e8738e7f11b21f851c42771fc638`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/284a890f9ea9e8738e7f11b21f851c42771fc638)
+(`feat: add stage 1.2 income expense postings and balances`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis; Anwendungs- und Testcode entsprechen dem mit 313 Tests geprüften
+Stand.
+
 ### Grenzen und Abschlusscheckliste
 
 Keine Mehrfachaufteilungen, Transfers, Refunds, Buchungsänderungen/Storno,
