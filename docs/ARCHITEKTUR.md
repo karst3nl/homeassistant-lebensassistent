@@ -12,7 +12,7 @@ Lokal betreibbare Home Assistant App (vormals Add-on) mit Ingress, eigener Pytho
 - `integrations/homeassistant/`: Benachrichtigungen, App-Umgebung, Ingress
 - `tests/`: synthetische Unit-/Integrationstests
 
-Diese Ordner sind **Planung**, keine bereits vorhandene Implementierung. Dateistruktur nur etappenweise erstellen.
+Diese Schichten beschreiben die **Zielstruktur**. Der tatsächlich implementierte Umfang steht in [PROGRESS.md](PROGRESS.md). Dateistruktur nur etappenweise erstellen.
 
 ## Datenschutz / Betrieb
 - Alle privaten Laufzeitdaten bleiben unter HA-App-`/data` und werden niemals committet.

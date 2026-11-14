@@ -1,0 +1,1 @@
+"""HTTP-Schnittstellen der Anwendung."""
