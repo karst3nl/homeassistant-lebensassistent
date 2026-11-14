@@ -63,6 +63,14 @@ erwartet am noch fehlenden App-Modul fehl. Nach dessen Implementierung liefen
 die oben protokollierten Prüfungen erfolgreich. Es bleiben keine bekannten
 Fehler innerhalb von Etappe 0.1.
 
+### Commitnachweis
+
+Implementierung, Tests und Prüfprotokoll sind auf `alpha` im Commit
+[`e57179867311e54bb8ac7bf4a62bd492ce850363`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/e57179867311e54bb8ac7bf4a62bd492ce850363)
+(`feat: add stage 0.1 FastAPI foundation and health tests`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis. Der Anwendungs- und Testcode entspricht dem geprüften Stand.
+
 ### Datenschutz und offene Prüfungen
 
 Vorgemerkten Diff manuell geprüft und automatisierten Secret-Scan ausgeführt.
