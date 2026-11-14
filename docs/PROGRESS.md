@@ -942,6 +942,15 @@ SQLite-Dateien, Browserbilder, Logs und Scanprotokoll liegen ausschließlich
 im temporären Arbeitsbereich. `git diff --cached --check` ist grün.
 Keine bekannten offenen Fehler im lokal geprüften Umfang von Etappe 1.3.
 
+### Commitnachweis
+
+Implementierung, Tests, Version 0.0.6 und Prüfprotokoll sind auf `alpha` im Commit
+[`d2b9e39342befeced73649422b6a4dc9a6aabffb`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/d2b9e39342befeced73649422b6a4dc9a6aabffb)
+(`feat: add stage 1.3 atomic category splits`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis; Anwendungs- und Testcode entsprechen dem mit 423 Tests geprüften
+Stand.
+
 ### Grenzen und Abschluss
 
 Keine Fahrzeug-/Projektzuordnungen, Transfers, Refunds, nachträglichen
