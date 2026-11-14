@@ -441,6 +441,15 @@ technische Grundlage; Etappe 1.1 bringt als Nächstes Konten und Kategorien.
 Keine Finanzverwaltung oder zusätzlichen Funktionen aus späteren Etappen
 begonnen. Keine bekannten Fehler im lokal geprüften Umfang von 0.4.
 
+### Commitnachweis
+
+Implementierung, Tests und Prüfprotokoll sind auf `alpha` im Commit
+[`fa133bf821eb00464aefd86d97c77993a9ec65d8`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/fa133bf821eb00464aefd86d97c77993a9ec65d8)
+(`feat: add stage 0.4 SQLite migrations and atomic audit`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis; Anwendungs- und Testcode entsprechen dem mit 111 Tests geprüften
+Stand.
+
 ### Abschlusscheckliste
 
 - [x] Etappe 0.4 implementiert, Version 0.0.2 vorbereitet.
