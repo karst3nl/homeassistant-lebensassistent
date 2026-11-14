@@ -62,7 +62,9 @@ def check_browser_origin(request: Request) -> None:
         raise HTTPException(403, "Forbidden") from None
 
 
-async def read_form(request: Request, allowed: set[str]) -> dict[str, str]:
+async def read_form(
+    request: Request, allowed: set[str], *, max_fields: int = 16
+) -> dict[str, str]:
     content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
     if content_type != "application/x-www-form-urlencoded":
         raise HTTPException(415, "Unsupported form encoding")
@@ -76,7 +78,7 @@ async def read_form(request: Request, allowed: set[str]) -> dict[str, str]:
             body.decode("utf-8"),
             keep_blank_values=True,
             strict_parsing=True,
-            max_num_fields=16,
+            max_num_fields=max_fields,
             errors="strict",
         )
     except (ValueError, UnicodeError):

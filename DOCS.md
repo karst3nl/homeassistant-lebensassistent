@@ -1,8 +1,8 @@
 # Lebensassistent Alpha — HA-App
 
 Experimentelle Basisoberfläche mit Navigation, automatischem Browser-Theme und
-Health-Endpunkt. Version **0.0.5** bietet Konten, Kategorien, Einnahmen und
-Ausgaben mit berechneten Kontosalden, SQLite und Audit. Projekte und Erinnerungen
+Health-Endpunkt. Version **0.0.6** bietet Konten, Kategorien, Einnahmen und
+Ausgaben samt Kategorieaufteilungen, berechneten Kontosalden, SQLite und Audit. Projekte und Erinnerungen
 sind noch nicht implementiert. Die Verpackung wurde lokal mit Docker auf **amd64** geprüft.
 Der Nutzer hat die Installation und erste Sichtprüfung von **0.0.1** auf seinem
 Home Assistant bestätigt; auch die 403-Korrektur von 0.0.4 wurde bestätigt.
@@ -29,16 +29,16 @@ aktiviert werden. Diese Schritte sind die Anleitung für den noch offenen
 weiteren HA-Abnahmetest; die Nutzerbestätigung zu 0.0.1 umfasst Installation
 und erste Sichtprüfung von 0.0.1.
 
-## Update von 0.0.1 bis 0.0.4 auf 0.0.5
+## Update von 0.0.1 bis 0.0.5 auf 0.0.6
 
 Die Repositories im App-Store aktualisieren und das angebotene Update auf
-**0.0.5** installieren. Der Branch bleibt **`#alpha`**. Die Datenbank wird beim
-Start auf Schema 3 gebracht. Bestehende Konten, Kategorien und Audit-Daten
-bleiben erhalten; die Buchungstabellen starten leer. Es werden keine
-Beispieldaten angelegt.
+**0.0.6** installieren. Der Branch bleibt **`#alpha`**. Schema 3 aus 0.0.5 bleibt
+unverändert; ältere Versionen werden beim Start auf Schema 3 gebracht.
+Bestehende Konten, Kategorien, Buchungen und Audit-Daten bleiben erhalten.
+Es werden keine Beispieldaten angelegt.
 
 Nach dem Update Start, Weboberfläche und einen Restart auf HA prüfen. Version
-0.0.5 wurde lokal gebaut und auf Bedienung, Start und Persistenz geprüft; das Update auf
+0.0.6 wurde lokal gebaut und auf Bedienung, Start und Persistenz geprüft; das Update auf
 dem HA-System steht noch aus.
 
 Die in 0.0.4 korrigierte **403-Prüfung beim Kontoanlegen** bleibt enthalten.
@@ -87,12 +87,42 @@ Buchungsdatum. Archivierte Konten/Kategorien behalten ihre Buchungshistorie;
 für neue Buchungen müssen sie aktiv sein. Kategorien müssen zur Buchungsart passen.
 
 Buchungsbeträge sind stets positiv; Einnahme oder Ausgabe bestimmt die Richtung.
-Ein normales Formular ordnet den gesamten Betrag genau einer Kategorie zu.
-Mehrfachaufteilungen, Umbuchungen, Rückerstattungen und Stornierungen kommen
-erst in späteren Etappen. Wiederholte Übermittlung desselben Formulars wird
+Ein normales Formular ordnet den gesamten Betrag genau einer Kategorie zu;
+für mehrere Kategorien **Buchung aufteilen** wählen. Umbuchungen,
+Rückerstattungen und Stornierungen kommen erst in späteren Etappen.
+Wiederholte Übermittlung desselben Formulars wird
 nur einmal gespeichert. Ein frisch geladenes Formular erlaubt eine neue,
 bewusst auch inhaltlich gleiche Buchung. Bei einem Formular-Konflikt die Seite
 neu laden.
+
+## Buchung aufteilen testen
+
+Für diesen Test ein weiteres synthetisches Konto mit `100,00` Anfangssaldo
+und zwei aktive Ausgabenkategorien verwenden.
+
+1. Im Bereich **Konten & Buchungen** im Formular **Neue Buchung** den Link
+   **Buchung aufteilen** öffnen. Buchungsart **Ausgabe**, Konto, Gesamtbetrag
+   `100,00` und ein Datum ab Kontostart, spätestens heute, wählen.
+2. In den beiden Zeilen passende Kategorien und `70,00` sowie `29,99` eingeben.
+   Gesamt- und Teilnotizen sind optional. **Aufteilung speichern** meldet eine
+   nicht passende Summe; der Saldo bleibt `100,00 €`, die Eingaben bleiben erhalten.
+3. Den zweiten Teilbetrag auf `30,00` korrigieren und speichern. Der Saldo
+   beträgt jetzt `0,00 €`. Die Liste zeigt eine Buchung über `100,00 €` und
+   beide Kategorien mit ihren Teilbeträgen und Notizen.
+4. Für einen weiteren Test ein neues Aufteilungsformular öffnen. Mit
+   **Teilbetrag hinzufügen** weitere Zeilen ergänzen und über **Teilbetrag
+   entfernen** wieder entfernen. Es sind zwei bis zwanzig Zeilen möglich.
+   Diese Aktionen speichern keine Buchung; auch leere Zeilen müssen vor dem
+   Speichern ausgefüllt oder entfernt werden. JavaScript ist nicht erforderlich.
+5. Seite neu laden und App neu starten; alle Teile und der Saldo sollten
+   erhalten bleiben. Das ist auf dem HA-System noch zu bestätigen.
+
+Aufgeteilte Einnahmen verwenden entsprechend aktive Einnahmenkategorien.
+Alle Teilbeträge müssen positiv sein und zusammen exakt den Gesamtbetrag
+ergeben. Eine Kategorie darf mehrfach vorkommen. Die Kontoänderung erfolgt
+einmal um den Gesamtbetrag; zusätzliche Teilbeträge erzeugen keine weiteren
+Kontobewegungen. Eine bestehende Buchung nachträglich aufzuteilen ist noch
+nicht möglich. Die bisherigen Einzelbuchungen bleiben nutzbar.
 
 Nach Update oder Neustart alte offene Formularseiten neu laden. Sollte eine
 alte Seite „Anfrage nicht zulässig“ anzeigen, neu laden und erneut versuchen.
@@ -148,7 +178,7 @@ Auf einem Entwicklungs-HA-System ausschließlich synthetische Daten verwenden:
 6. Datenbank und Migrationshistorie nach Update und Restart prüfen, ohne private
    Daten zu verwenden. Den ARM-Build und Betrieb auf dem Zielgerät prüfen.
 
-Ergebnisse in `docs/PROGRESS.md` ergänzen. Etappe 1.3 beginnt erst nach
+Ergebnisse in `docs/PROGRESS.md` ergänzen. Etappe 1.4 beginnt erst nach
 ausdrücklicher Nutzerfreigabe.
 
 ## Lokale Entwicklung und Fehlerdiagnose

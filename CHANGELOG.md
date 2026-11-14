@@ -1,5 +1,17 @@
 # Änderungen
 
+## 0.0.6 — Buchungen auf Kategorien aufteilen
+
+- Einnahmen und Ausgaben auf zwei bis zwanzig positive Teilbeträge mit
+  Kategorie und optionaler Teilnotiz aufteilen. Die Summe muss exakt passen.
+- Zeilen ohne JavaScript hinzufügen/entfernen; Eingaben bei Fehlern erhalten.
+- Alle Teile, Gesamtbuchung und Audit gemeinsam atomar speichern.
+- Wiederholte oder konkurrierende Formularübermittlung bleibt vor Doppelanlage
+  geschützt; geänderte Teilbeträge/Notizen mit derselben Formular-ID ergeben Konflikt.
+- Buchungsliste zeigt alle Teile; Kontosalden zählen die Gesamtbuchung einmal.
+- Einzelbuchungen und Datenbankschema 3 bleiben kompatibel. Keine Migration,
+  Umbuchungen, Rückerstattungen oder nachträglichen Buchungskorrekturen.
+
 ## 0.0.5 — Einnahmen, Ausgaben und Kontosalden
 
 - Einnahmen und Ausgaben mit Konto, passender Kategorie, positivem Eurobetrag,

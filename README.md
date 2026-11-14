@@ -13,14 +13,16 @@ deutscher Basisoberfläche, Navigation und automatischem Hell-/Dunkel-Theme
 bereit. `GET /health` liefert HTTP 200 und `{"status":"ok"}`.
 Die übrigen Modulbereiche sind als „In Vorbereitung“ gekennzeichnet. Etappe 0.3 ergänzt
 eine experimentelle HA-App-Verpackung mit Ingress-Schutz und privatem `/data`.
-Version **0.0.5** bietet unter **Konten & Buchungen** Konten, Kategorien und
-die Erfassung von Einnahmen und Ausgaben. Kontosalden werden centgenau aus
+Version **0.0.6** bietet unter **Konten & Buchungen** Konten, Kategorien und
+die Erfassung von Einnahmen und Ausgaben. Über **Buchung aufteilen** lassen
+sich zwei bis zwanzig Teilbeträge verschiedenen Kategorien zuordnen;
+ihre Summe muss centgenau dem Gesamtbetrag entsprechen. Kontosalden werden aus
 Anfangssaldo und gebuchten Bewegungen bis zum heutigen Datum berechnet.
 SQLite, Migrationen und Audit liegen unter `/data`.
-Aufteilungen, Umbuchungen und weitere Module folgen in späteren Etappen. Docker wurde lokal
+Umbuchungen und weitere Module folgen in späteren Etappen. Docker wurde lokal
 auf amd64 geprüft. Die Installation/Sichtprüfung von 0.0.1 auf HA wurde vom
 Nutzer bestätigt. Auch die 403-Korrektur aus 0.0.4 wurde vom Nutzer bestätigt.
-Die Buchungsfunktionen von 0.0.5 sowie vollständige HA-Security-/ARM-Prüfungen
+Die Buchungs-/Aufteilungsfunktionen von 0.0.5/0.0.6 sowie vollständige HA-Security-/ARM-Prüfungen
 stehen auf dem Zielsystem noch aus.
 
 Die [HA-App-Anleitung](DOCS.md) verwendet ausschließlich das Repository mit

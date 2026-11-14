@@ -1,6 +1,6 @@
 <section id="buchungen" aria-labelledby="bookings-title" class="catalog-section">
   <div class="section-heading"><div><p class="eyebrow">EINNAHMEN UND AUSGABEN</p><h2 id="bookings-title">Deine Buchungen</h2></div></div>
-  <p class="field-help">Kontosalden gelten zum {{ as_of | local_date }}. Zukünftig datierte Buchungen zählen erst ab ihrem Datum. Umbuchungen, Aufteilungen und Stornierungen folgen später.</p>
+  <p class="field-help">Kontosalden gelten zum {{ as_of | local_date }}. Zukünftig datierte Buchungen zählen erst ab ihrem Datum. Umbuchungen und Stornierungen folgen später.</p>
   <div class="finance-layout">
     <div class="record-list">
       <p class="field-help">Letzte 50 Buchungen, nach Buchungsdatum sortiert.</p>
@@ -10,11 +10,17 @@
         <p>{{ booking.account_name }} · {{ booking.booked_date | local_date }}</p>
         {% if booking.status != 'posted' %}<p class="status-badge">Storniert</p>{% elif booking.booked_date > as_of %}<p class="status-badge">Zukünftig datiert · noch nicht im heutigen Saldo</p>{% endif %}
         {% if booking.description %}<p class="record-note">{{ booking.description }}</p>{% endif %}
+        {% if booking.splits | length > 1 %}
+        <ul class="split-summary" aria-label="Aufteilung">
+          {% for part in booking.splits %}<li><span>{{ part.category_name }}</span><strong>{{ part.amount_cents | eur }}</strong>{% if part.memo %}<p>{{ part.memo }}</p>{% endif %}</li>{% endfor %}
+        </ul>
+        {% endif %}
       </article>
       {% else %}<div class="empty-records"><h3>Noch keine Buchungen</h3><p>Lege zunächst ein Konto und eine passende Kategorie an. Danach kannst du Einnahmen und Ausgaben erfassen.</p></div>{% endfor %}
     </div>
     <form action="{{ url_for('create_transaction') }}" method="post" class="entry-form" aria-labelledby="new-booking-title">
       <h3 id="new-booking-title">Neue Buchung</h3>
+      <p class="field-help">Mehrere Kategorien? <a href="{{ url_for('split_booking') }}">Buchung aufteilen</a></p>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="submission_id" value="{{ values.transaction.submission_id }}">
       {{ error('transaction.submission_id') }}

@@ -120,7 +120,7 @@ geänderten Migrationen bricht der Start ab. Es gibt keinen automatischen
 Reset auf eine leere Datenbank. SQLite-UPDATE/DELETE auf Audit-Einträgen sind
 gesperrt; das ist kein Schutz gegen administrativen Dateizugriff.
 
-### Konten, Kategorien und Buchungen (bis Etappe 1.2, Version 0.0.5)
+### Konten, Kategorien und Buchungen (bis Etappe 1.3, Version 0.0.6)
 
 Mit dem oben konfigurierten Datenbankstart
 **http://127.0.0.1:8000/bereiche/finanzen** öffnen. Dort lassen sich Konten und
@@ -143,15 +143,32 @@ Aktuelle Kontosalden stammen ausschließlich aus Anfangssaldo und `posted`-
 Bewegungen bis heute, berechnet mit Python-Integern aus einem SQL-Snapshot.
 Zukünftige Datierungen sind sichtbar gekennzeichnet und zählen erst ab ihrem
 Datum; vor Kontoöffnung kein Saldo. Archivierte Historie bleibt erhalten.
-Die Liste zeigt die letzten 50 Einträge. Noch keine Mehrfachaufteilungen,
-Transfers, Rückerstattungen oder Buchungsänderung/Stornierung.
+Die Liste zeigt die letzten 50 Einträge. Über **Buchung aufteilen** lassen sich
+Einnahmen/Ausgaben auf zwei bis zwanzig positive Kategorieanteile verteilen.
+Die Summe muss centgenau dem Gesamtbetrag entsprechen. Optionale Teilnotizen
+sind auf 2000 Zeichen begrenzt. Alle Kategorien müssen aktiv und derselben Art
+wie die Buchung sein. Normal- und Mehrfachbuchung verwenden denselben atomaren
+Speicherpfad samt Audit und Replay-Schutz. Der Replay-Vergleich umfasst jeden
+Teilbetrag, seine Kategorie und Notiz in Reihenfolge.
+
+Die Listenabfrage begrenzt die Elternbuchungen vor dem Split-JOIN (CTE), liefert
+alle zugehörigen Teile in einem SQL-Snapshot und zählt die Gesamtbewegung im
+Saldo genau einmal. Schema 3 und die bisherigen Migrationen bleiben unverändert.
+Noch keine Transfers, Rückerstattungen oder Buchungsänderung/Stornierung.
 
 Die Formulare verwenden normale HTML-POSTs, keinen JavaScript-Client und keine
 zusätzliche JSON-API. Ein zufälliger CSRF-Token pro App-Instanz ist zwingend;
 `compare_digest` prüft ihn vor Service-/DB-Aufrufen. Nach Neustart alte Seiten
 neu laden. Finanzseiten und Formularantworten haben `Cache-Control: no-store`.
-URL-kodierte Bodies sind auf 32 KiB und 16 eindeutige Felder begrenzt;
-andere Encodings, doppelte oder unerwartete Felder werden abgewiesen.
+URL-kodierte Bodies sind auf 32 KiB und standardmäßig 16 eindeutige Felder
+begrenzt; das Aufteilungsformular verwendet explizit 70 Felder für maximal 20
+Zeilen. Die 32 KiB gelten auch für die Summe aller kodierten Teilnotizen.
+Andere Encodings, doppelte oder unerwartete Felder werden abgewiesen.
+
+`GET/POST /buchungen/aufteilen` arbeitet ohne JavaScript. Zeilenaktionen erhalten
+Werte und Formular-ID, durchlaufen denselben Schutz und speichern keine Buchung.
+Manipulierte Anzahl/Indizes oder Felder außerhalb der deklarierten Zeilen werden
+abgewiesen. Beim Speichern werden auch leere/halbgefüllte Zeilen validiert.
 
 Fetch-Site und die Origin-Authority werden zusätzlich geprüft. Nur nach der
 Ingress-Peer-/Präfixprüfung darf ein einzelner gültiger X-Forwarded-Host als
@@ -176,7 +193,7 @@ uv run --locked ruff format --check .
 uv lock --check
 ```
 
-pytest prüft **270 Unit-/API-Tests ohne Browser oder Docker**:
+pytest prüft **370 Unit-/API-Tests ohne Browser oder Docker**:
 
 - `GET /health`: HTTP 200, JSON-Content-Type und exakte Antwort.
 - `POST /health` mit synthetischem Inhalt: HTTP 405; Health bleibt unverändert.
@@ -211,6 +228,11 @@ pytest prüft **270 Unit-/API-Tests ohne Browser oder Docker**:
   Cent-Präzision und Aggregationen über den SQLite-int64-Bereich hinaus.
 - Formular-Werterhalt, Schutz des neuen POSTs, Replay/Konflikte und parallele
   Übermittlung derselben Buchungsanfrage ohne Doppelanlage.
+- Exakte Split-Summen, spätere Teil-/Auditfehler mit vollständigem Rollback,
+  geordnete vollständige Listen mit Elternlimit, Replay bei geänderten Teilen
+  sowie Rennen zwischen Speichern, Wiederholung und Kategorienarchivierung.
+- Server-Zeilenaktionen, Werte-/ID-Erhalt, Grenzen, leere Zeilen, zusätzliche
+  Felder und 20 gültige Teile bei ausdrücklich erweitertem Feldbudget.
 
 Die ursprünglichen Migration-1-/Audit-Grundlagentests laufen weiterhin mit
 expliziter v1-Registry; separate Tests prüfen die neue produktive Registry.
@@ -240,8 +262,8 @@ uv run --group browser --locked pytest browser_tests
 uv run --group browser --locked pytest tests browser_tests
 ```
 
-Der erste Befehl führt **37 Browsertests** aus, der zweite die API-/Browser-
-Suite mit **307 Tests**. Die Browserprüfungen starten selbst
+Der erste Befehl führt **46 Browsertests** aus, der zweite die API-/Browser-
+Suite mit **416 Tests**. Die Browserprüfungen starten selbst
 einen lokalen Uvicorn-Prozess auf einem freien Loopback-Port und beenden ihn
 anschließend. Sie prüfen 320/390/768/1280 Pixel, beide Themes, alle
 Navigationsziele, Tastatur-Sprunglink, Seitenoverflow, Asset-/Konsolenfehler,
@@ -266,6 +288,12 @@ Neun weitere Abläufe erfassen Einnahmen/Ausgaben bei Mobil-/Desktopbreite,
 hell/dunkel und Root/Präfix sowie im simulierten HA-Ingress mit Null-Origin.
 Sie prüfen `100,00 → 87,66 → 87,67 €`, Zukunftsausschluss, ungültige Beträge,
 Werterhalt samt Formular-ID, Notiz-Escaping und Persistenz nach Reload.
+
+Neun Aufteilungsabläufe laufen mit deaktiviertem Seiten-JavaScript. Sie prüfen
+Zeilen hinzufügen/entfernen, Cent-Summenfehler ohne Kontobewegung, Korrektur,
+alle gespeicherten Kategorien/Teilnotizen, Einnahmen/Ausgaben, Reload und
+Präfixe. Der simulierte HA-Fall sendet native Null-Origin-POSTs auch bei
+Zeilenaktionen; dies ersetzt keinen echten HA-Laufzeittest.
 
 Alternativ kann ein vorhandenes Chromium verwendet werden (in dieser
 Cloud-Umgebung tatsächlich mit Chromium **156.0.8078.79** geprüft):
@@ -312,7 +340,7 @@ docker build --build-arg BUILD_ARCH=amd64 -t lebensassistent:alpha .
 uv run --locked pytest container_tests
 ```
 
-Die **6 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
+Die **7 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
 UUID-benannte Testcontainer, ein privates Volume und ein internes Testnetz
 mit Subnetz `172.30.32.0/24`. Der Entwicklungs-Dockerdaemon muss dieses Netz
 frei haben. Es werden keine Hostports geöffnet. Ein Client mit TCP-Adresse
@@ -325,7 +353,9 @@ synthetisch Schema 2 mit Konto, Kategorie und Test-Audit angelegt; der Start
 migriert auf Schema 3 und erhält die Historie. Das ist ein Schema-Upgrade, kein behaupteter
 Wechsel zwischen zwei alten/neuen Containerimages. Echte TCP-POSTs prüfen
 Konten/Kategorien/Buchungen, CSRF-/Peer-Abweisung, Replay und Persistenz von
-Buchungen und berechneten Salden über Restart/Neuerstellung.
+Buchungen, vollständigen Aufteilungen und berechneten Salden über
+Restart/Neuerstellung. Zusätzliche Split-POSTs prüfen Cent-Fehler, Replay und
+geschützte Zeilenaktionen über echte TCP-Peers.
 Die SQLite-Datei unter
 `/data` hat UID/GID 1000 und Modus 0600. Anschließend werden nur die eigenen Testressourcen
 entfernt. Build- und Serverlogs liegen im temporären pytest-Verzeichnis.
@@ -352,7 +382,7 @@ Vollständige lokale Regression mit Browser **und** Docker:
 uv run --group browser --locked pytest tests browser_tests container_tests
 ```
 
-Das sind **313 Tests**. In dieser Cloud-Umgebung werden zusätzlich
+Das sind **423 Tests**. In dieser Cloud-Umgebung werden zusätzlich
 `LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium` und
 `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt` gesetzt.
 Paket-/Image-Downloads sind nur für Einrichtung und Build erforderlich.
@@ -360,7 +390,7 @@ Der Container-Test selbst läuft in einem internen Netz ohne externe Dienste.
 
 Die Installation und erste Sichtprüfung von 0.0.1 auf HA wurden vom Nutzer
 bestätigt; auch die erfolgreiche 403-Korrektur aus 0.0.4 wurde bestätigt.
-Die neuen Buchungsfunktionen von 0.0.5, vollständige Sessionprüfung,
+Die neuen Buchungs-/Aufteilungsfunktionen von 0.0.5/0.0.6, vollständige Sessionprüfung,
 HA-Restart, AppArmor-Einbindung und der ARM-Nachweis sind weiterhin offen.
 Für die HA-Prüfung ausschließlich die Repository-URL
 mit **`#alpha`** aus [DOCS.md](../DOCS.md) verwenden. Der hier verfügbare
@@ -391,6 +421,7 @@ src/lebensassistent/
         views.py                    # gemeinsames Rendering/Formatierung
         catalog.py                  # Konten-/Kategorienformulare
         ledger.py                   # normale Einnahmen-/Ausgabenformulare
+        splits.py                   # Aufteilungen und geschützte Zeilenaktionen
         forms.py                    # CSRF, Authority und begrenztes Form-Parsing
     frontend/
         templates/                  # Basis, Übersicht, Platzhalter, Fehlerseite
@@ -418,4 +449,4 @@ docs/                               # verbindliche Vorgaben und Ergebnisse
 ```
 
 Weitere Schichten aus `ARCHITEKTUR.md` werden erst in ihrer jeweiligen Etappe
-angelegt. Etappe 1.3 beginnt ausschließlich nach ausdrücklicher Freigabe.
+angelegt. Etappe 1.4 beginnt ausschließlich nach ausdrücklicher Freigabe.

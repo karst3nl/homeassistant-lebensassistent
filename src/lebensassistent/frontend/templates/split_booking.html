@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% macro error(key) %}{% if errors.get(key) %}<p class="field-error" role="alert">{{ errors[key] }}</p>{% endif %}{% endmacro %}
+{% block content %}
+<div class="page-heading"><p class="eyebrow">MEHRERE KATEGORIEN</p><h1>Buchung aufteilen</h1><p>Eine Einnahme oder Ausgabe mit mehreren Teilbeträgen erfassen. Die Summe muss centgenau dem Gesamtbetrag entsprechen.</p></div>
+<a href="{{ url_for('section', section_key='finanzen') }}#buchungen">Zurück zu Konten &amp; Buchungen</a>
+{{ error('global') }}{{ error('splits') }}
+<form action="{{ url_for('submit_split_booking') }}" method="post" class="entry-form split-form" aria-label="Aufgeteilte Buchung">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="submission_id" value="{{ values.submission_id }}">
+  <input type="hidden" name="row_count" value="{{ values.rows | length }}">
+  {{ error('submission_id') }}
+  <label for="split-kind">Buchungsart</label>
+  <select id="split-kind" name="kind"><option value="expense"{% if values.kind == 'expense' %} selected{% endif %}>Ausgabe</option><option value="income"{% if values.kind == 'income' %} selected{% endif %}>Einnahme</option></select>
+  {{ error('kind') }}
+  <label for="split-account">Buchungskonto</label>
+  <select id="split-account" name="account_id" required><option value="">Konto auswählen</option>{% for account in accounts if account.is_active %}<option value="{{ account.id }}"{% if values.account_id == account.id|string %} selected{% endif %}>{{ account.name }}</option>{% endfor %}</select>
+  {{ error('account_id') }}
+  <label for="split-total">Gesamtbetrag in EUR</label>
+  <input id="split-total" name="amount" value="{{ values.amount }}" required inputmode="decimal" maxlength="32">
+  <p class="field-help">Alle Beträge positiv, ohne Tausendertrennzeichen. Einnahme oder Ausgabe bestimmt die Richtung.</p>
+  {{ error('amount') }}
+  <label for="split-date">Buchungsdatum</label>
+  <input id="split-date" type="date" name="booked_date" value="{{ values.booked_date }}">
+  {{ error('booked_date') }}
+  <label for="split-description">Buchungsnotiz <span class="optional">(optional)</span></label>
+  <textarea id="split-description" name="description" maxlength="2000" rows="2">{{ values.description }}</textarea>
+  {{ error('description') }}
+  <p class="field-help">Zwei bis {{ max_splits }} Teilbeträge. Jede Kategorie muss aktiv sein und zur Buchungsart passen. Zeilenaktionen speichern noch keine Buchung.</p>
+  {% for row in values.rows %}{% set index = loop.index0 %}
+  <fieldset class="split-row"><legend>Teilbetrag {{ loop.index }}</legend>
+    <label for="category-{{ index }}">Kategorie {{ loop.index }}</label>
+    <select id="category-{{ index }}" name="category_{{ index }}" required><option value="">Kategorie auswählen</option>{% for category in categories if category.is_active %}<option value="{{ category.id }}"{% if row.category == category.id|string %} selected{% endif %}>{{ category.name }} ({{ 'Einnahme' if category.kind == 'income' else 'Ausgabe' }})</option>{% endfor %}</select>
+    {{ error('splits.' ~ index ~ '.category_id') }}
+    <label for="part-amount-{{ index }}">Betrag {{ loop.index }} in EUR</label>
+    <input id="part-amount-{{ index }}" name="amount_{{ index }}" value="{{ row.amount }}" required inputmode="decimal" maxlength="32">
+    {{ error('splits.' ~ index ~ '.amount_cents') }}
+    <label for="memo-{{ index }}">Teilnotiz {{ loop.index }} <span class="optional">(optional)</span></label>
+    <textarea id="memo-{{ index }}" name="memo_{{ index }}" maxlength="2000" rows="2">{{ row.memo }}</textarea>
+    {{ error('splits.' ~ index ~ '.memo') }}
+    {% if values.rows | length > 2 %}<button type="submit" name="intent" value="remove:{{ index }}" formnovalidate class="button secondary" aria-label="Teilbetrag {{ loop.index }} entfernen">Teilbetrag entfernen</button>{% endif %}
+  </fieldset>
+  {% endfor %}
+  {% if values.rows | length < max_splits %}<button type="submit" name="intent" value="add" formnovalidate class="button secondary">Teilbetrag hinzufügen</button>{% endif %}
+  <button type="submit" name="intent" value="save" class="button">Aufteilung speichern</button>
+</form>
+{% endblock %}

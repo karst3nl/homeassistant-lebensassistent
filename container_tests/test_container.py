@@ -316,3 +316,168 @@ with database.connect() as connection:
     logs = sandbox.docker("logs", sandbox.app)
     for private in (csrf, submission, "Synthetische TCP-Buchung"):
         assert private not in logs.stdout + logs.stderr
+
+
+def test_split_posts_once_and_survives_recreation(sandbox: DockerSandbox) -> None:
+    path = "/buchungen/aufteilen"
+    headers = {
+        "X-Ingress-Path": PREFIX,
+        "Origin": "null",
+        "Sec-Fetch-Site": "same-origin",
+    }
+    page = sandbox.request(sandbox.trusted, path, headers)
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', page["body"])[1]
+    submission = re.search(r'name="submission_id" value="([^"]+)"', page["body"])[1]
+    assert (
+        sandbox.request(
+            sandbox.trusted,
+            "/konten",
+            headers,
+            {
+                "csrf_token": csrf,
+                "name": "Synthetisches TCP-Splitkonto",
+                "account_type": "checking",
+                "opening_balance": "100,00",
+                "opening_date": "2026-01-01",
+                "notes": "",
+            },
+        )["status"]
+        == 303
+    )
+    assert (
+        sandbox.request(
+            sandbox.trusted,
+            "/kategorien",
+            headers,
+            {
+                "csrf_token": csrf,
+                "name": "Synthetische TCP-Splitkategorie",
+                "kind": "income",
+            },
+        )["status"]
+        == 303
+    )
+    identifiers = """
+import json
+from pathlib import Path
+from lebensassistent.database.connection import Database
+with Database(Path('/data/lebensassistent.sqlite3')).connect() as connection:
+    account = connection.execute(
+        "SELECT id FROM accounts WHERE name='Synthetisches TCP-Splitkonto'"
+    ).fetchone()[0]
+    category = connection.execute(
+        "SELECT id FROM categories WHERE name='Synthetische TCP-Splitkategorie'"
+    ).fetchone()[0]
+print(json.dumps([account, category]))
+"""
+    account, category = json.loads(
+        sandbox.docker(
+            "exec", "--user", "1000:1000", sandbox.app, "python", "-c", identifiers
+        ).stdout
+    )
+    form = {
+        "csrf_token": csrf,
+        "submission_id": submission,
+        "row_count": "2",
+        "intent": "save",
+        "account_id": str(account),
+        "kind": "income",
+        "amount": "100,00",
+        "booked_date": "2026-01-15",
+        "description": "Synthetische TCP-Aufteilung",
+        "category_0": "1",
+        "amount_0": "70,00",
+        "memo_0": "Synthetischer Anteil A",
+        "category_1": str(category),
+        "amount_1": "30,00",
+        "memo_1": "Synthetischer Anteil B",
+    }
+    assert (
+        sandbox.request(
+            sandbox.untrusted, path, {**headers, "X-Forwarded-For": "172.30.32.2"}, form
+        )["status"]
+        == 403
+    )
+    assert (
+        sandbox.request(
+            sandbox.trusted,
+            path,
+            headers,
+            {**form, "csrf_token": "synthetic-wrong", "intent": "add"},
+        )["status"]
+        == 403
+    )
+    assert (
+        sandbox.request(sandbox.trusted, path, headers, {**form, "amount_1": "29,99"})[
+            "status"
+        ]
+        == 422
+    )
+    assert (
+        sandbox.request(sandbox.trusted, path, headers, {**form, "intent": "add"})[
+            "status"
+        ]
+        == 200
+    )
+    for _ in range(2):
+        assert sandbox.request(sandbox.trusted, path, headers, form)["status"] == 303
+    assert (
+        sandbox.request(
+            sandbox.trusted,
+            path,
+            headers,
+            {**form, "memo_1": "Synthetisch geänderter Anteil"},
+        )["status"]
+        == 409
+    )
+    check = """
+import sys
+from datetime import date
+from pathlib import Path
+from lebensassistent.database.connection import Database
+from lebensassistent.services.ledger import LedgerService
+database = Database(Path('/data/lebensassistent.sqlite3'))
+ledger = LedgerService(database)
+account = int(sys.argv[1])
+assert ledger.balance(account, date(2026, 1, 15)) == 20000
+records = ledger.transactions(account_id=account)
+assert len(records) == 1 and len(records[0]['splits']) == 2
+assert [part['amount_cents'] for part in records[0]['splits']] == [7000, 3000]
+assert [part['memo'] for part in records[0]['splits']] == [
+    'Synthetischer Anteil A', 'Synthetischer Anteil B']
+with database.connect() as connection:
+    assert connection.execute(
+        "SELECT COUNT(*) FROM audit_log "
+        "WHERE entity_type='transactions' AND entity_id=?",
+        (records[0]['id'],)).fetchone()[0] == 1
+"""
+    for recreate in (False, True):
+        if recreate:
+            sandbox.docker("stop", "--time", "10", sandbox.app)
+            sandbox.docker("rm", sandbox.app)
+            sandbox.start_app()
+        else:
+            sandbox.docker("restart", "--time", "10", sandbox.app)
+            sandbox.wait_ready()
+        sandbox.docker(
+            "exec",
+            "--user",
+            "1000:1000",
+            sandbox.app,
+            "python",
+            "-c",
+            check,
+            str(account),
+        )
+        page = sandbox.request(sandbox.trusted, "/bereiche/finanzen", headers)
+        assert "Synthetischer Anteil A" in page["body"]
+        assert "Synthetischer Anteil B" in page["body"]
+    assert sandbox.request(sandbox.trusted, path, headers, form)["status"] == 403
+    logs = sandbox.docker("logs", sandbox.app)
+    for private in (
+        csrf,
+        submission,
+        "Synthetische TCP-Aufteilung",
+        "Synthetischer Anteil A",
+    ):
+        assert private not in logs.stdout + logs.stderr

@@ -67,9 +67,8 @@ sind zulässig. Konto-/Kategorieeingaben verwenden strikt validierte DTOs.
 
 `services/ledger.py` prüft aktive Konten und passende aktive Kategorien sowie
 ein Buchungsdatum ab Kontostart. `repositories/ledger.py` speichert Buchung und
-genau eine vollständige Kategoriezuordnung; deren gemeinsamer Audit-Snapshot
-liegt in derselben `BEGIN IMMEDIATE`-Transaktion. Mehrfachaufteilungen und
-weitere Buchungsarten werden noch nicht angeboten.
+bei Normalbuchungen eine vollständige Kategoriezuordnung; deren gemeinsamer
+Audit-Snapshot liegt in derselben `BEGIN IMMEDIATE`-Transaktion.
 
 Positive Einzelbeträge bleiben Integer-Cent im SQLite-int64-Bereich. Die Richtung
 ergibt sich aus Einnahme/Ausgabe. Salden werden aus `transactions` berechnet,
@@ -89,7 +88,32 @@ weder CSRF-Token noch Ingress-Authentifizierung.
 `api/ledger.py` verarbeitet das servergerenderte Buchungsformular über dieselben
 begrenzten Form-/CSRF-Prüfungen. Datum ist standardmäßig heute in Europe/Berlin.
 Die Finanzansicht zeigt aktuelle Salden, Anfangssalden und die letzten 50
-Buchungen. Keine Änderungs-, Storno-, Transfer- oder Mehrfachsplit-Routen.
+Buchungen. Keine Änderungs-, Storno- oder Transfer-Routen.
+
+## Kategorieaufteilungen (Etappe 1.3)
+
+`SplitPostingInput` validiert zwei bis zwanzig positive `SplitInput`-Teilbeträge
+mit Kategorie und optionaler Teilnotiz. Die Python-Integer-Summe muss exakt
+dem Gesamtbetrag entsprechen. `LedgerService.post_split` und die bestehende
+Normalbuchung verwenden denselben normalisierten, atomaren Speicherpfad.
+Alle Kategorien werden in der Schreibtransaktion auf Aktivität und passende
+Art geprüft. Bei einem Fehler eines späteren Teils rollt auch der Elternsatz
+zurück. Der Audit-Snapshot enthält alle Teile in ihrer Reihenfolge.
+
+Replay vergleicht Kernfelder und die vollständige geordnete Liste aus Kategorie,
+Betrag und Teilnotiz. Änderungen an irgendeinem Teil führen zum Konflikt;
+parallele Wiederholungen erzeugen keine Doppelanlage. Der Betrag im Elternsatz
+bleibt die einzige Quelle für Kontosalden. Die Listenabfrage begrenzt in einer
+CTE zunächst die Elternbuchungen, hängt anschließend alle Teile an und liefert
+einen konsistenten SQL-Snapshot. Das Limit schneidet keine Teilbeträge ab.
+
+`api/splits.py` bietet das eigenständige HTML-Formular. Add/Remove-Aktionen
+durchlaufen CSRF/Ingress-/Origin-Prüfungen und ändern nur die dargestellten
+Zeilen. Das Standard-Feldlimit bleibt 16; ausschließlich diese Route verwendet
+70 Felder bei unverändertem 32-KiB-Bodylimit. Zeilenzahl, Index und überzählige
+Felder werden geprüft; leere Zeilen werden beim Speichern nicht ignoriert.
+Schema 3 und alle bisherigen Migrationen bleiben unverändert. Fahrzeug- und
+Projektzuordnungen folgen erst mit den jeweiligen Modulen.
 
 ## Datenschutz / Betrieb
 - Alle privaten Laufzeitdaten bleiben unter HA-App-`/data` und werden niemals committet.

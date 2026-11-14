@@ -1,14 +1,14 @@
 # Entwicklungsfortschritt
 
 ## Stand
-- Status: **Etappen 0.1 bis 0.4 und 1.1 bis 1.2 lokal implementiert und geprüft**, App-Version **0.0.5**; Freigabepause.
+- Status: **Etappen 0.1 bis 0.4 und 1.1 bis 1.3 lokal implementiert und geprüft**, App-Version **0.0.6**; Freigabepause.
 - Aktiver Branch: `alpha`; `main` nur Platzhalter, nicht bearbeiten.
-- Zuletzt lokal abgeschlossene Etappe: **1.2** — Einnahmen/Ausgaben, atomare Speicherung, Kategoriezuordnung und berechnete Salden.
-- Geprüft: **313 Tests** in frischer Umgebung: 270 Unit-/API-, 37 Chromium-Browser- und 6 echte Docker-Prüfungen; Lint/Format und Lockfile grün.
+- Zuletzt lokal abgeschlossene Etappe: **1.3** — centgenaue Kategorieaufteilungen, atomare Speicherung und geschützte Zeilenaktionen.
+- Geprüft: **423 Tests** in frischer Umgebung: 370 Unit-/API-, 46 Chromium-Browser- und 7 echte Docker-Prüfungen; Lint/Format und Lockfile grün.
 - Vom Nutzer bestätigt: Installation und erste Sichtprüfung von **0.0.1** auf seinem Home Assistant. Gerät, Architektur und HA-Version wurden nicht genannt.
 - Vom Nutzer zusätzlich bestätigt: Die 403-Korrektur aus **0.0.4** funktioniert auf seinem Home Assistant; keine darüber hinausgehende Security-/ARM-Abnahme abgeleitet.
-- Noch nicht geprüft: Update und Buchungsfunktionen von **0.0.5** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
-- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.3 abwarten**; noch keine Mehrfachaufteilungen, Transfers, Refunds oder Buchungskorrekturen begonnen.
+- Noch nicht geprüft: Buchungs-/Aufteilungsfunktionen von **0.0.5/0.0.6** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
+- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.4 abwarten**; noch keine Transfers, Refunds oder Buchungskorrekturen begonnen.
 
 ## Etappenlog
 | Etappe | Status | Tests | Freigabe |
@@ -19,8 +19,9 @@
 | 0.4 SQLite/Migration | Lokal abgeschlossen | 111 Tests grün; weiterhin Teil der Regression | Fortsetzung durch Nutzer freigegeben |
 | 1.1 Konten/Kategorien | Lokal abgeschlossen | 212 Tests grün; erste Masken im Browser und Container geprüft | Fortsetzung durch Nutzer freigegeben |
 | 1.1 Korrektur 0.0.4 | Formular-403 behoben; Erfolg vom Nutzer bestätigt | 220 Tests grün; native Browser-POSTs unter HA-Referrer-Policy geprüft | „das hat geklappt, mach weiter“ |
-| 1.2 Einnahmen/Ausgaben | Lokal abgeschlossen | 313 Tests grün; Salden, Replay, Upgrade und Persistenz geprüft | Ergebnis zur Abnahme vorgelegt |
-| 1.3–7.x | Offen | — | Ausstehend |
+| 1.2 Einnahmen/Ausgaben | Lokal abgeschlossen | 313 Tests grün; Salden, Replay, Upgrade und Persistenz geprüft | „okay weiter mit der app“ |
+| 1.3 Kategorieaufteilungen | Lokal abgeschlossen | 423 Tests grün; exakte Summen, Rollback, Race-/Replay-Schutz und Persistenz geprüft | Ergebnis zur Abnahme vorgelegt |
+| 1.4–7.x | Offen | — | Ausstehend |
 
 Nach jeder Mini-Etappe ausfüllen: Änderung, betroffene Dateien, Testbefehle mit Ergebnis, bekannte Probleme, Datenschutzcheck, Commit-SHA und Freigabe.
 
@@ -835,4 +836,121 @@ Die Nutzerbestätigung für 0.0.4 ersetzt diese Prüfungen nicht.
 - [x] Unit-/API-, Browser-, Migrations- und Containerregression ausgeführt.
 - [x] Nutzerbestätigung der 403-Korrektur aus 0.0.4 dokumentiert.
 - [ ] HA-Laufzeittest der neuen Buchungsfunktionen und weitere HA-/ARM-Abnahme.
-- [ ] Nutzerfreigabe für Etappe 1.3.
+- [x] Nutzerfreigabe für Etappe 1.3 durch „okay weiter mit der app“ (2026-11-14).
+
+## Etappe 1.3 — 2026-11-14
+
+### Freigabe und Umfang
+
+Der Nutzer gibt mit **„okay weiter mit der app“** die nächste Etappe frei.
+Das wird als Entwicklungsfreigabe erfasst, nicht als Bestätigung der neuen
+Buchungsfunktionen auf HA. Ausschließlich 1.3 wurde umgesetzt. Ausgangscommit
+auf `alpha`: `3356b41a2ff4e112e0ee6428ad309da8252acd77`.
+
+### Änderungen
+
+- `services/ledger.py`: strikt validierte Teilbeträge mit Kategorie und
+  optionaler Teilnotiz. Zwei bis zwanzig positive int64-Centbeträge müssen
+  mit Python-Integern exakt den Gesamtbetrag ergeben. Wiederholte Kategorien
+  sind zulässig; leere/ungültige Teile werden nicht still ignoriert.
+- Normal- und aufgeteilte Buchung verwenden denselben atomaren Speicherpfad.
+  Konto und alle Kategorien werden innerhalb `BEGIN IMMEDIATE` geprüft.
+  Elternbuchung, alle Teile und vollständiger Audit-Snapshot werden gemeinsam
+  gespeichert oder vollständig zurückgerollt, auch bei einem späteren Teilfehler.
+- Replay vergleicht Kernfelder plus die vollständige geordnete Liste aus
+  Kategorie, Betrag und Teilnotiz. Identische Wiederholungen bleiben einmalig;
+  abweichende Teile mit derselben ID ergeben Konflikt. Parallel- und
+  Kategorienarchivierungsfälle sind abgesichert.
+- `repositories/ledger.py`: mehrere geordnete Inserts; Listen-CTE begrenzt
+  zunächst die Elternbuchungen und liefert anschließend alle Teile in einem
+  SQL-Snapshot. Das Limit schneidet keine Aufteilungen ab. Saldenberechnung
+  bleibt unverändert und zählt ausschließlich die Gesamtbuchung einmal.
+- `api/splits.py`, `main.py`, `split_booking.html`, `bookings.html`, CSS:
+  eigenständiges Formular unter `/buchungen/aufteilen`, Link im bestehenden
+  Buchungsformular, alle Teile in der Buchungsliste. Add/Remove funktioniert
+  serverseitig ohne JavaScript, erhält Eingaben/ID und speichert keine Buchung.
+- `api/forms.py`: unverändert 32 KiB Bodylimit und standardmäßig 16 Felder;
+  nur die neue Route erhält explizit 70 Felder. CSRF-/Origin-/Ingress-Prüfung
+  erfolgt auch vor Zeilenaktionen. Anzahl, Indizes, zusätzliche Felder und
+  leere Reihen werden geprüft. Notizen werden escaped; HTML bleibt no-store.
+- Version in HA-Konfiguration, Paket, Docker und Lockfile auf **0.0.6** erhöht.
+  Keine neuen Pakete, keine Migration: alle drei bisherigen Migrationen und
+  Prüfsummen bleiben exakt unverändert. README, Changelog, HA-Anleitung,
+  Architektur, Entwicklungsanleitung und Etappenstatus aktualisiert.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Linux x86_64, Python **3.12.14**, uv **0.13.6**, Chromium **156.0.8078.79**;
+ausschließlich synthetische Daten. Testdatenbanken, virtuelle Umgebungen, Bilder
+und Logs liegen außerhalb des Repositorys.
+
+| Befehl / Prüfung | Tatsächliches Ergebnis |
+|---|---|
+| `uv run --locked pytest tests/test_split_service.py` vor Implementierung | Erwarteter Sammelfehler: fehlender `SplitInput` (0,20 s) |
+| `uv run --locked pytest tests/test_split_http.py` vor Formular | **53 failed** (1,64 s), noch fehlender GET/Formular-Endpunkt |
+| `uv run --locked pytest tests/test_split_service.py tests/test_ledger_service.py` | **87 passed** (0,86 s) |
+| API-Regression nach Backend, ohne neues HTTP-Modul | **317 passed** (3,94 s) |
+| `uv run --locked pytest tests/test_split_http.py` nach Formular | **53 passed** (1,60 s) |
+| `uv run --locked pytest tests` | **370 passed** (5,17 s) |
+| `uv run --group browser --locked pytest browser_tests/test_split_browser.py` | **9 passed** (21,60 s), Seiten-JavaScript deaktiviert |
+| `uv run --group browser --locked pytest container_tests` | **7 passed** (59,87 s), amd64-Image gebaut und gestartet |
+| `uv sync --locked --group browser` mit frischem `UV_PROJECT_ENVIRONMENT` | 29 Pakete einschließlich Version 0.0.6 installiert |
+| `uv run --group browser --locked pytest tests browser_tests container_tests` in frischer Umgebung | **423 passed** (157,62 s): 370 Unit/API + 46 Browser + 7 Container |
+| Ruff check/format, `uv lock --check`, `git diff --check` | Erfolgreich |
+| Unabhängiges Backend-/Repository-/HTTP-/Template-/Security-Review | Keine offenen Befunde; zusätzlich **87 passed** (0,69 s) |
+| AST-Vergleich der gesamten Migrationsregistry gegen Ausgangscommit | Alle drei Migrationen unverändert |
+| Zusätzliche Prüfung einer kopierten synthetischen Test-DB aus dem ausgeführten 0.0.5-Lauf | Schema 3 gültig; alte Buchungen, Teile und Audits unverändert, neue Aufteilung korrekt; Saldo 10767→10267 Cent |
+| Visuelle Browserprüfung | Mobil hell und Desktop dunkel ohne sichtbaren Layoutfehler |
+
+Für Browser-/Containerläufe waren wie zuvor Chromium-Pfad und temporäres
+Build-CA-Secret konfiguriert. TLS bleibt geprüft. Die frische Gesamtsuite
+enthält alle abschließenden Änderungen; danach nur Dokumentation ergänzt.
+
+Die 47 neuen Servicefälle prüfen Summenabweichungen um einen Cent, positive
+Grenzwerte und Überläufe, zwanzig Teile, vollständigen Audit-/Insert-Rollback,
+Abfragelimit auf Eltern statt Teilen und unveränderte Normalbuchungen.
+Parallele identische Anfragen erzeugen genau einen Datensatz; bei abweichenden
+Aufteilungen gewinnt genau eine vollständige Anfrage, die andere erhält
+Konflikt. Archivierung und Buchung serialisieren ohne halbe Speicherung.
+
+53 HTTP-Fälle prüfen Root/Präfix, Werterhalt, Summe/Leerzeilen, Zeilenaktionen,
+Index-/Anzahl-Manipulation, Feld-/Bodygrenzen, Escaping und Null-Origin nur
+hinter verifiziertem Ingress. Neun Browserabläufe prüfen mit deaktiviertem
+Seiten-JavaScript Mobil/Desktop, Hell/Dunkel und den simulierten HA-Pfad;
+darunter Einnahme und Ausgabe. Cent-Fehler lassen Saldo und Buchungsliste
+unverändert; nach Korrektur erscheint genau eine vollständige Aufteilung.
+
+Der zusätzliche TCP-Containerfall prüft Add/Save mit Null-Origin, falsche
+Tokens/Peers, Summenfehler, Replay und Teilnotiz-Konflikt. Beide Teile und der
+einmalig berechnete Saldo überstehen Restart und komplette Neuerstellung mit
+demselben Volume. CSRF-/Formular-ID und synthetische Finanznotizen erscheinen
+nicht in Standardlogs. Dies ist kein echter HA- oder alter/neuer Imagewechsel.
+
+Die Zusatzprüfung verwendet ausschließlich eine private Kopie der eigenen
+synthetischen SQLite-Datei aus dem 0.0.5-Testlauf. Die Quelle wurde read-only
+geöffnet; nach neuem Split blieben die alten Tabellenzeilen und Audit-Einträge
+unverändert. Ein zunächst zu enges Pfadmuster im Prüfsystem wurde korrigiert.
+Lint-/Formatfehler wurden in derselben Etappe vor dem grünen Lauf behoben.
+
+### Datenschutz und Abschlussprüfung
+
+Vorgemerkten Diff manuell geprüft und `detect-secrets==1.5.0 scan --no-verify`
+ausgeführt: **keine Funde**. Keine persönlichen Finanzdaten, Zugangsdaten,
+Laufzeitdatenbanken oder Backups hinzugefügt. Die Dateiprüfung fand keine DBs
+im Repository; eigene Testcontainer, -volumes und -netze sind entfernt.
+SQLite-Dateien, Browserbilder, Logs und Scanprotokoll liegen ausschließlich
+im temporären Arbeitsbereich. `git diff --cached --check` ist grün.
+Keine bekannten offenen Fehler im lokal geprüften Umfang von Etappe 1.3.
+
+### Grenzen und Abschluss
+
+Keine Fahrzeug-/Projektzuordnungen, Transfers, Refunds, nachträglichen
+Aufteilungen/Korrekturen oder weiteren Module begonnen. Die Prüfung auf dem
+Nutzer-HA für 0.0.5/0.0.6 steht aus; dessen letzte ausdrückliche Erfolgsbestätigung
+betrifft die 403-Korrektur von 0.0.4. Vollständige HA-Security-/Restart-/AppArmor-
+Abnahme, ARM/Raspberry Pi und Safari/iOS bleiben offen.
+
+- [x] Etappe 1.3 implementiert, Version 0.0.6 vorbereitet.
+- [x] Unit-/API-, Race-, Browser- und echte Containerregression ausgeführt.
+- [ ] HA-Laufzeittest der Buchungs-/Aufteilungsfunktionen und weitere HA-/ARM-Abnahme.
+- [ ] Nutzerfreigabe für Etappe 1.4.

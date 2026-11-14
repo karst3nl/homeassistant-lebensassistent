@@ -1,10 +1,17 @@
-"""Atomare Einnahmen/Ausgaben mit einer vollständigen Kategoriezuordnung."""
+"""Atomare Einnahmen/Ausgaben mit centgenauen Kategorieaufteilungen."""
 
 from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from lebensassistent.database.audit import append_audit
 from lebensassistent.database.connection import Database, transaction
@@ -17,10 +24,12 @@ def today_berlin() -> date:
     return datetime.now(ZoneInfo("Europe/Berlin")).date()
 
 
-class PostingInput(BaseModel):
+MAX_SPLITS = 20
+
+
+class PostingCore(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
     account_id: Annotated[int, Field(gt=0, le=MAX_CENTS)]
-    category_id: Annotated[int, Field(gt=0, le=MAX_CENTS)]
     kind: Literal["income", "expense"]
     amount_cents: Annotated[int, Field(gt=0, le=MAX_CENTS)]
     booked_date: date = Field(default_factory=today_berlin)
@@ -37,6 +46,29 @@ class PostingInput(BaseModel):
         raise ValueError("Ein gültiges Kalenderdatum ist erforderlich.")
 
 
+class PostingInput(PostingCore):
+    category_id: Annotated[int, Field(gt=0, le=MAX_CENTS)]
+
+
+class SplitInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
+    category_id: Annotated[int, Field(gt=0, le=MAX_CENTS)]
+    amount_cents: Annotated[int, Field(gt=0, le=MAX_CENTS)]
+    memo: Annotated[str, StringConstraints(max_length=2000)] | None = None
+
+
+class SplitPostingInput(PostingCore):
+    splits: Annotated[list[SplitInput], Field(min_length=2, max_length=MAX_SPLITS)]
+
+    @model_validator(mode="after")
+    def exact_sum(self):
+        if sum(part.amount_cents for part in self.splits) != self.amount_cents:
+            raise ValueError(
+                "Die Summe der Teilbeträge muss dem Gesamtbetrag entsprechen."
+            )
+        return self
+
+
 class LedgerError(ValueError):
     def __init__(self, field: str, message: str, *, conflict: bool = False) -> None:
         super().__init__(message)
@@ -49,18 +81,40 @@ class LedgerService:
         self.database = database
 
     def post(self, values: PostingInput) -> dict:
-        data = values.model_dump()
+        return self._post(
+            values,
+            [
+                {
+                    "category_id": values.category_id,
+                    "amount_cents": values.amount_cents,
+                    "memo": None,
+                }
+            ],
+        )
+
+    def post_split(self, values: SplitPostingInput) -> dict:
+        return self._post(values, [part.model_dump() for part in values.splits])
+
+    def _post(self, values: PostingCore, splits: list[dict]) -> dict:
+        data = values.model_dump(exclude={"category_id", "splits"})
         data["booked_date"] = values.booked_date.isoformat()
+        if sum(part["amount_cents"] for part in splits) != values.amount_cents:
+            raise LedgerError(
+                "splits", "Die Summe der Teilbeträge muss dem Gesamtbetrag entsprechen."
+            )
         with self.database.connect() as connection, transaction(connection):
             previous = repository.submitted(connection, values.submission_id)
             if previous is not None:
-                same = all(
-                    previous[key] == value
-                    for key, value in data.items()
-                    if key != "category_id"
-                ) and (
-                    len(previous["splits"]) == 1
-                    and previous["splits"][0]["category_id"] == values.category_id
+                same = (
+                    all(previous[key] == value for key, value in data.items())
+                    and [
+                        {
+                            key: part[key]
+                            for key in ("category_id", "amount_cents", "memo")
+                        }
+                        for part in previous["splits"]
+                    ]
+                    == splits
                 )
                 if not same:
                     raise LedgerError(
@@ -73,22 +127,29 @@ class LedgerService:
             account = catalog.record(connection, "accounts", values.account_id)
             if account is None or not account["is_active"]:
                 raise LedgerError("account_id", "Bitte ein aktives Konto auswählen.")
-            category = catalog.record(connection, "categories", values.category_id)
-            if (
-                category is None
-                or not category["is_active"]
-                or category["kind"] != values.kind
-            ):
-                raise LedgerError(
-                    "category_id",
-                    "Bitte eine aktive Kategorie derselben Art auswählen.",
-                )
+            for index, part in enumerate(splits):
+                category = catalog.record(connection, "categories", part["category_id"])
+                if (
+                    category is None
+                    or not category["is_active"]
+                    or category["kind"] != values.kind
+                ):
+                    field = (
+                        f"splits.{index}.category_id"
+                        if len(splits) > 1
+                        else "category_id"
+                    )
+                    raise LedgerError(
+                        field, "Bitte eine aktive Kategorie derselben Art auswählen."
+                    )
             if data["booked_date"] < account["opening_date"]:
                 raise LedgerError(
                     "booked_date",
                     "Das Buchungsdatum darf nicht vor dem Kontostart liegen.",
                 )
-            record = repository.insert(connection, data, datetime.now(UTC).isoformat())
+            record = repository.insert(
+                connection, {**data, "splits": splits}, datetime.now(UTC).isoformat()
+            )
             append_audit(
                 connection,
                 entity_type="transactions",
