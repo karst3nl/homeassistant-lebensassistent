@@ -310,6 +310,15 @@ Die offene HA-/ARM-Abnahme ist in [DOCS.md](../DOCS.md) beschrieben. Es bleiben
 keine bekannten Fehler innerhalb des lokal geprüften Umfangs von 0.3. Keine
 Datenbank, Migration oder Finanzfunktion aus Etappe 0.4 oder später begonnen.
 
+### Commitnachweis
+
+Implementierung, Tests und Prüfprotokoll sind auf `alpha` im Commit
+[`23be23e1ff62ff93f37219e067415ace68b6ae52`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/23be23e1ff62ff93f37219e067415ace68b6ae52)
+(`feat: package stage 0.3 HA app with protected ingress`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis; Anwendungs- und Testcode entsprechen dem mit 81 Tests geprüften
+Stand.
+
 ### Abschlusscheckliste
 
 - [x] Etappe 0.3 implementiert.
