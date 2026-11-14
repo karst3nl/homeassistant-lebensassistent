@@ -594,6 +594,15 @@ die abschließende Ressourcenprüfung fand keine verbliebenen Testressourcen.
 `git diff --cached --check` ist grün. Keine bekannten offenen Fehler im lokal
 geprüften Umfang von Etappe 1.1.
 
+### Commitnachweis
+
+Implementierung, Tests und Prüfprotokoll sind auf `alpha` im Commit
+[`8e15eda8e47ab2ce642164f8b97767408caa7d7a`](https://github.com/karst3nl/homeassistant-lebensassistent/commit/8e15eda8e47ab2ce642164f8b97767408caa7d7a)
+(`feat: add stage 1.1 accounts and categories`) enthalten.
+Der anschließende Dokumentationscommit ergänzt ausschließlich diesen
+Hashnachweis; Anwendungs- und Testcode entsprechen dem mit 212 Tests geprüften
+Stand.
+
 ### Abschlusscheckliste
 
 - [x] Etappe 1.1 implementiert, Version 0.0.3 mit ersten bedienbaren Masken.
