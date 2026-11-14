@@ -9,12 +9,12 @@ import pytest
 
 from lebensassistent.database.audit import append_audit
 from lebensassistent.database.connection import Database, transaction
-from lebensassistent.database.migrations import migrate
+from lebensassistent.database.migrations import MIGRATIONS, migrate
 
 
 def test_audit_stores_json_utc_and_literal_sql_like_text(tmp_path: Path) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    migrate(database)
+    migrate(database, MIGRATIONS[:1])
     snapshot = {"label": "synthetic ' ; DROP TABLE audit_log; --"}
     with database.connect() as connection, transaction(connection):
         audit_id = append_audit(
@@ -35,7 +35,7 @@ def test_audit_stores_json_utc_and_literal_sql_like_text(tmp_path: Path) -> None
 
 def test_audit_refuses_writes_outside_transaction(tmp_path: Path) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    migrate(database)
+    migrate(database, MIGRATIONS[:1])
     with (
         database.connect() as connection,
         pytest.raises(RuntimeError, match="transaction"),
@@ -45,7 +45,7 @@ def test_audit_refuses_writes_outside_transaction(tmp_path: Path) -> None:
 
 def test_audit_rolls_back_with_synthetic_business_failure(tmp_path: Path) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    migrate(database)
+    migrate(database, MIGRATIONS[:1])
     with database.connect() as connection:
         connection.execute("CREATE TABLE synthetic_items (id INTEGER PRIMARY KEY)")
         with pytest.raises(sqlite3.IntegrityError), transaction(connection):
@@ -71,7 +71,7 @@ def test_audit_rolls_back_with_synthetic_business_failure(tmp_path: Path) -> Non
 )
 def test_audit_entries_cannot_be_changed(tmp_path: Path, statement: str) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    migrate(database)
+    migrate(database, MIGRATIONS[:1])
     with (
         database.connect() as connection,
         pytest.raises(sqlite3.IntegrityError, match="immutable"),
@@ -84,7 +84,7 @@ def test_audit_rejects_nonfinite_json_without_partial_write(
     tmp_path: Path, invalid: float
 ) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    migrate(database)
+    migrate(database, MIGRATIONS[:1])
     with database.connect() as connection:
         with pytest.raises(ValueError), transaction(connection):
             append_audit(

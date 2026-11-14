@@ -46,6 +46,47 @@ MIGRATIONS = (
                BEGIN SELECT RAISE(ABORT, 'Audit entries are immutable'); END""",
         ),
     ),
+    Migration(
+        2,
+        "accounts_and_categories",
+        (
+            """CREATE TABLE accounts (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 100),
+                account_type TEXT NOT NULL
+                    CHECK(account_type IN
+                        ('checking', 'savings', 'cash', 'credit_card')),
+                role TEXT NOT NULL DEFAULT 'general'
+                    CHECK(role IN ('general', 'fixed_costs', 'savings')),
+                opening_balance_cents INTEGER NOT NULL,
+                opening_date TEXT NOT NULL CHECK(
+                    opening_date BETWEEN '0001-01-01' AND '9999-12-31'
+                    AND opening_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+                    AND COALESCE(date(opening_date, '+0 days') = opening_date, 0)),
+                is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+                include_in_liquidity INTEGER NOT NULL DEFAULT 1
+                    CHECK(include_in_liquidity IN (0, 1)),
+                sort_order INTEGER NOT NULL DEFAULT 0 CHECK(sort_order >= 0),
+                notes TEXT CHECK(notes IS NULL OR length(notes) <= 2000),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            ) STRICT""",
+            """CREATE TABLE categories (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 100),
+                parent_id INTEGER CHECK(parent_id IS NULL OR parent_id != id),
+                kind TEXT NOT NULL CHECK(kind IN ('income', 'expense')),
+                is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+                sort_order INTEGER NOT NULL DEFAULT 0 CHECK(sort_order >= 0),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(id, kind),
+                FOREIGN KEY(parent_id, kind) REFERENCES categories(id, kind)
+                    ON DELETE RESTRICT
+            ) STRICT""",
+            "CREATE INDEX category_parent ON categories(parent_id)",
+        ),
+    ),
 )
 
 

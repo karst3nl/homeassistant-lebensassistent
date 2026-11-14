@@ -50,6 +50,7 @@ class IngressMiddleware:
             path = path[len(prefix) :] or "/"
             raw_path = raw_path[len(prefix_bytes) :] or b"/"
         adapted = dict(scope)
+        adapted["lebensassistent.ingress_verified"] = True
         adapted["root_path"] = prefix
         adapted["path"] = prefix + path
         adapted["raw_path"] = prefix_bytes + raw_path

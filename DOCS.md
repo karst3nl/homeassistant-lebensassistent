@@ -1,11 +1,11 @@
 # Lebensassistent Alpha — HA-App
 
 Experimentelle Basisoberfläche mit Navigation, automatischem Browser-Theme und
-Health-Endpunkt. Version **0.0.2** ergänzt die interne SQLite-Grundlage mit
-Migrationen und Audit. Konten, Buchungen, Projekte und Erinnerungen sind noch
-nicht implementiert. Die Verpackung wurde lokal mit Docker auf **amd64** geprüft.
+Health-Endpunkt. Version **0.0.3** bietet die ersten bedienbaren Konten- und
+Kategorienmasken mit SQLite und Audit. Buchungen, Projekte und Erinnerungen
+sind noch nicht implementiert. Die Verpackung wurde lokal mit Docker auf **amd64** geprüft.
 Der Nutzer hat die Installation und erste Sichtprüfung von **0.0.1** auf seinem
-Home Assistant bestätigt. **Das Update auf 0.0.2, vollständige HA-Security-/
+Home Assistant bestätigt. **Das Update auf 0.0.3, vollständige HA-Security-/
 Restart-Prüfungen und ARM-Nachweise stehen noch aus.**
 
 ## Installation zur HA-Prüfung
@@ -28,17 +28,46 @@ aktiviert werden. Diese Schritte sind die Anleitung für den noch offenen
 weiteren HA-Abnahmetest; die bisherige Nutzerbestätigung umfasst Installation
 und erste Sichtprüfung von 0.0.1.
 
-## Update von 0.0.1 auf 0.0.2
+## Update von 0.0.1 oder 0.0.2 auf 0.0.3
 
 Die Repositories im App-Store aktualisieren und das angebotene Update auf
-**0.0.2** installieren. Der Branch bleibt **`#alpha`**. Die bisherige Oberfläche
-bleibt bestehen. Beim ersten Start entsteht ausschließlich die technische
-Datenbank mit Migrationshistorie und Audit-Protokoll; Konten oder Buchungen
-werden noch nicht angelegt. Es gibt in dieser Etappe keine neuen Eingabemasken.
+**0.0.3** installieren. Der Branch bleibt **`#alpha`**. Die Datenbank wird beim
+Start auf Schema 2 gebracht. Bestehende Audit-Daten bleiben erhalten;
+Konten und Kategorien starten leer. Es werden keine Beispieldaten angelegt.
 
 Nach dem Update Start, Weboberfläche und einen Restart auf HA prüfen. Version
-0.0.2 wurde lokal gebaut und auf Start und Persistenz geprüft; das Update auf
+0.0.3 wurde lokal gebaut und auf Bedienung, Start und Persistenz geprüft; das Update auf
 dem HA-System steht noch aus.
+
+## Erste Funktionen testen
+
+Im Menü **Konten & Buchungen** sind jetzt **Konten & Kategorien** verfügbar.
+Für die Alpha-Prüfung ausschließlich synthetische Daten verwenden:
+
+1. Unter **Neues Konto** einen Testnamen, eine Kontoart, einen Anfangssaldo und
+   das Startdatum eingeben. Eine Notiz ist optional. **Konto anlegen** wählen.
+2. Eurobeträge ohne Tausendertrennzeichen eingeben, z. B. `1234,56`, `12.34`
+   oder `-12,34`. Höchstens zwei Nachkommastellen sind zulässig. Ein negativer
+   Anfangssaldo ist erlaubt; das Startdatum muss ein echtes Kalenderdatum sein.
+3. Das Konto **archivieren** und danach **aktivieren**. Es wird nicht gelöscht;
+   Anfangssaldo und Startdatum bleiben nach der Anlage unverändert.
+4. Unter **Neue Kategorie** einen Namen und **Einnahme** oder **Ausgabe** wählen.
+   Optional eine aktive Oberkategorie derselben Art auswählen.
+5. Auch Kategorien archivieren/aktivieren. Aktive Unterkategorien müssen zuerst
+   archiviert werden; eine Unterkategorie kann erst nach ihrer Oberkategorie
+   wieder aktiviert werden.
+6. Seite neu laden und die App in HA neu starten; Testeinträge sollten erhalten
+   bleiben. Das ist auf dem HA-System noch zu bestätigen.
+
+Die Masken zeigen Validierungsfehler an und behalten eingegebene Werte zur
+Korrektur. Bei einem falschen Anfangssaldo kann das Testkonto in dieser Version
+archiviert und neu angelegt werden; eine direkte Saldoänderung ist nicht
+vorgesehen. Es gibt noch keine Bearbeitung von Namen/Notizen, keine Löschung
+und keine Buchungserfassung. Die angezeigten Werte sind **Anfangssalden**,
+noch keine aus Buchungen berechneten Kontostände.
+
+Nach Update oder Neustart alte offene Formularseiten neu laden. Sollte eine
+alte Seite „Anfrage nicht zulässig“ anzeigen, neu laden und erneut versuchen.
 
 ## Einstellungen, Netzwerk und Daten
 
@@ -61,12 +90,13 @@ dem HA-System steht noch aus.
 - Die Datenbank liegt unter **`/data/lebensassistent.sqlite3`**; zugehörige
   WAL-/SHM-Dateien bleiben im selben privaten Verzeichnis. Verbindungen
   aktivieren Fremdschlüssel, WAL und vollständige Synchronisierung.
-- Schemaänderungen und ihre Audit-Einträge werden gemeinsam atomar angewandt.
+- Schemaänderungen, Konten-/Kategorienänderungen und ihre Audit-Einträge werden
+  jeweils gemeinsam atomar angewandt.
   Unbekannte neuere oder veränderte Migrationshistorien sowie beschädigte
   Dateien verhindern den Start. Vorhandene Daten werden nicht still gelöscht
   oder durch eine neue leere Datenbank ersetzt.
-- Die lokale Persistenzprüfung verwendet nur synthetische Audit-Einträge und
-  Marker. Sie ist kein Backup-/Restoretest. Das Audit-Protokoll ist durch
+- Die lokale Persistenzprüfung verwendet synthetische Konten, Kategorien,
+  Audit-Einträge und Marker. Sie ist kein Backup-/Restoretest. Das Audit-Protokoll ist durch
   SQLite-Trigger gegen reguläres Ändern/Löschen geschützt, nicht gegen einen
   Angreifer mit direktem Dateizugriff.
 - HTTP-Access-Logs sind ausgeschaltet, damit Ingress-Sessionpfade nicht in
@@ -90,7 +120,7 @@ Auf einem Entwicklungs-HA-System ausschließlich synthetische Daten verwenden:
 6. Datenbank und Migrationshistorie nach Update und Restart prüfen, ohne private
    Daten zu verwenden. Den ARM-Build und Betrieb auf dem Zielgerät prüfen.
 
-Ergebnisse in `docs/PROGRESS.md` ergänzen. Etappe 1.1 beginnt erst nach
+Ergebnisse in `docs/PROGRESS.md` ergänzen. Etappe 1.2 beginnt erst nach
 ausdrücklicher Nutzerfreigabe.
 
 ## Lokale Entwicklung und Fehlerdiagnose

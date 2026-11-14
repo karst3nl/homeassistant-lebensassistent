@@ -21,6 +21,12 @@ def server_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
         port = listener.getsockname()[1]
     url = f"http://127.0.0.1:{port}"
     log_path = tmp_path_factory.mktemp("server") / "uvicorn.log"
+    environment = {
+        **os.environ,
+        "LEBENSASSISTENT_BROWSER_DATA_DIR": str(
+            tmp_path_factory.mktemp("synthetic-data")
+        ),
+    }
     with log_path.open("w") as log:
         process = subprocess.Popen(
             [
@@ -36,6 +42,7 @@ def server_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
             cwd=Path(__file__).resolve().parents[1],
             stdout=log,
             stderr=subprocess.STDOUT,
+            env=environment,
         )
         try:
             deadline = time.monotonic() + 15

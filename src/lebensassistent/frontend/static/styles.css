@@ -82,6 +82,42 @@ main:focus { outline: none; }
 .error-state { margin-top: 16px; }
 .error-state h1 { font-size: 2rem; }
 footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: auto; padding: 20px 40px; border-top: 1px solid var(--line); font-size: .7rem; color: var(--muted); }
+.page-tabs { display: flex; gap: 10px; margin: 0 0 30px; }
+.page-tabs a { padding: 8px 16px; border: 1px solid var(--line); border-radius: 8px; color: var(--accent); background: var(--surface); font-size: .85rem; }
+.catalog-section { margin-bottom: 40px; scroll-margin-top: 20px; }
+.finance-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; gap: 24px; }
+.record-list { display: grid; gap: 16px; min-width: 0; }
+.record-card, .entry-form, .empty-records { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 24px; min-width: 0; }
+.record-card, .empty-records { overflow-wrap: anywhere; }
+.record-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.record-heading h3 { font-size: 1.1rem; margin-top: 4px; }
+.record-kind, .status-badge { color: var(--muted); font-size: .7rem; }
+.status-badge { padding: 3px 8px; border-radius: 5px; background: var(--accent-soft); white-space: nowrap; }
+.archived { border-style: dashed; }
+.record-facts { display: flex; flex-wrap: wrap; gap: 16px 36px; margin: 22px 0 0; }
+.record-facts dt { color: var(--muted); font-size: .75rem; }
+.record-facts dd { margin: 3px 0 0; font-size: .9rem; }
+.record-facts .amount { font-size: 1.3rem; font-weight: 650; }
+.record-note, .empty-records p { margin-top: 14px; color: var(--muted); font-size: .85rem; }
+.empty-records h3 { font-size: 1.1rem; }
+.entry-form { display: flex; flex-direction: column; }
+.entry-form h3 { font-size: 1.1rem; margin-bottom: 8px; }
+.entry-form label { margin: 16px 0 6px; font-size: .85rem; font-weight: 600; }
+.optional { font-weight: 400; color: var(--muted); }
+.entry-form input, .entry-form select, .entry-form textarea { width: 100%; max-width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 1rem; background: var(--background); color: var(--text); }
+.entry-form textarea { resize: vertical; }
+.entry-form input:focus-visible, .entry-form select:focus-visible, .entry-form textarea:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.entry-form .button { align-self: start; margin-top: 22px; }
+.button { border: 0; cursor: pointer; font-family: inherit; }
+.button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--line); padding: 7px 14px; margin-top: 18px; }
+.field-help { margin-top: 7px; color: var(--muted); font-size: .75rem; }
+.field-error, .form-error { color: light-dark(#8b2525, #ffb4ab); font-size: .85rem; }
+.field-error { margin-top: 6px; }
+.notice, .form-error { padding: 14px 18px; margin-bottom: 22px; border-radius: 8px; border: 1px solid var(--line); background: var(--accent-soft); }
+.notice { color: var(--accent); }
+.entry-form [aria-invalid="true"] { border-color: light-dark(#8b2525, #ffb4ab); }
+
+@media (max-width: 1100px) { .finance-layout { grid-template-columns: minmax(0, 1fr); } .entry-form { order: -1; } }
 
 @media (max-width: 1200px) {
   .app-shell { grid-template-columns: 240px minmax(0, 1fr); }

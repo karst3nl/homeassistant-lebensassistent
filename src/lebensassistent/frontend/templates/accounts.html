@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% macro error(key) %}{% if errors.get(key) %}<p class="field-error" role="alert">{{ errors[key] }}</p>{% endif %}{% endmacro %}
+{% block content %}
+<div class="page-heading">
+  <p class="eyebrow">DEINE FINANZEN</p>
+  <h1>Konten &amp; Kategorien</h1>
+  <p>Deine Konten anlegen, Anfangssalden festhalten und Kategorien vorbereiten.</p>
+  <p class="field-help">Buchungen sind noch nicht verfügbar.</p>
+</div>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if errors.get('global') %}<p class="form-error" role="alert">{{ errors['global'] }}</p>{% endif %}
+{% if not db_available %}
+<section class="empty-state"><h2>Kontoverwaltung derzeit nicht verfügbar</h2><p>Bitte versuche es später erneut.</p></section>
+{% else %}
+<nav class="page-tabs" aria-label="Finanzbereiche"><a href="#konten">Konten</a><a href="#kategorien">Kategorien</a></nav>
+<section id="konten" aria-labelledby="accounts-title" class="catalog-section">
+  <div class="section-heading"><div><p class="eyebrow">DEIN GELD IM BLICK</p><h2 id="accounts-title">Deine Konten</h2></div></div>
+  <div class="finance-layout">
+    <div class="record-list">
+      {% for account in accounts %}
+      <article class="record-card{% if not account.is_active %} archived{% endif %}" aria-labelledby="account-{{ account.id }}">
+        <div class="record-heading"><div><span class="record-kind">{{ account_types[account.account_type] }}</span><h3 id="account-{{ account.id }}">{{ account.name }}</h3></div><span class="status-badge">{{ 'Aktiv' if account.is_active else 'Archiviert' }}</span></div>
+        <dl class="record-facts"><div><dt>Anfangssaldo</dt><dd class="amount">{{ account.opening_balance_cents | eur }}</dd></div><div><dt>Startdatum</dt><dd>{{ account.opening_date | local_date }}</dd></div></dl>
+        {% if account.notes %}<p class="record-note">{{ account.notes }}</p>{% endif %}
+        <form action="{{ url_for('account_status', entity_id=account.id) }}" method="post" class="status-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="active" value="{{ '0' if account.is_active else '1' }}">
+          <button type="submit" class="button secondary">{{ 'Archivieren' if account.is_active else 'Aktivieren' }}</button>
+        </form>
+      </article>
+      {% else %}
+      <div class="empty-records"><span class="module-icon"><svg class="icon" aria-hidden="true"><use href="#icon-wallet"/></svg></span><h3>Noch keine Konten</h3><p>Lege dein erstes Konto mit dem Saldo zum Beginn deiner Erfassung an.</p></div>
+      {% endfor %}
+    </div>
+    <form action="{{ url_for('create_account') }}" method="post" class="entry-form" aria-labelledby="new-account-title">
+      <h3 id="new-account-title">Neues Konto</h3>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="account-name">Kontoname</label>
+      <input id="account-name" name="name" value="{{ values.account.name }}" required maxlength="100" autocomplete="off"{% if errors.get('account.name') %} aria-invalid="true"{% endif %}>
+      {{ error('account.name') }}
+      <label for="account-type">Kontoart</label>
+      <select id="account-type" name="account_type">{% for key, label in account_types.items() %}<option value="{{ key }}"{% if values.account.account_type == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      {{ error('account.account_type') }}
+      <label for="opening-balance">Anfangssaldo in EUR</label>
+      <input id="opening-balance" name="opening_balance" value="{{ values.account.opening_balance }}" required inputmode="decimal" maxlength="32" aria-describedby="balance-help"{% if errors.get('account.opening_balance') %} aria-invalid="true"{% endif %}>
+      <p id="balance-help" class="field-help">Auch negativ möglich, z. B. -12,34. Ohne Tausendertrennzeichen. Nach der Anlage nicht direkt änderbar.</p>
+      {{ error('account.opening_balance') }}
+      <label for="opening-date">Startdatum</label>
+      <input id="opening-date" type="date" name="opening_date" value="{{ values.account.opening_date }}" required{% if errors.get('account.opening_date') %} aria-invalid="true"{% endif %}>
+      {{ error('account.opening_date') }}
+      <label for="account-notes">Notiz <span class="optional">(optional)</span></label>
+      <textarea id="account-notes" name="notes" maxlength="2000" rows="2">{{ values.account.notes }}</textarea>
+      {{ error('account.notes') }}
+      <button type="submit" class="button">Konto anlegen</button>
+    </form>
+  </div>
+</section>
+<section id="kategorien" aria-labelledby="categories-title" class="catalog-section">
+  <div class="section-heading"><div><p class="eyebrow">ORDNUNG FÜR SPÄTERE BUCHUNGEN</p><h2 id="categories-title">Deine Kategorien</h2></div></div>
+  <div class="finance-layout">
+    <div class="record-list">
+      {% for category in categories %}
+      <article class="record-card compact{% if not category.is_active %} archived{% endif %}" aria-label="Kategorie {{ category.name }}">
+        <div class="record-heading"><div><span class="record-kind">{{ 'Einnahme' if category.kind == 'income' else 'Ausgabe' }}</span><h3>{{ category.name }}</h3></div><span class="status-badge">{{ 'Aktiv' if category.is_active else 'Archiviert' }}</span></div>
+        {% if category.parent_id %}{% for parent in categories if parent.id == category.parent_id %}<p class="record-note">Unterkategorie von {{ parent.name }}</p>{% endfor %}{% endif %}
+        <form action="{{ url_for('category_status', entity_id=category.id) }}" method="post" class="status-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="active" value="{{ '0' if category.is_active else '1' }}">
+          <button type="submit" class="button secondary">{{ 'Archivieren' if category.is_active else 'Aktivieren' }}</button>
+        </form>
+      </article>
+      {% else %}<div class="empty-records"><h3>Noch keine Kategorien</h3><p>Lege eigene Kategorien für Einnahmen und Ausgaben an.</p></div>{% endfor %}
+    </div>
+    <form action="{{ url_for('create_category') }}" method="post" class="entry-form" aria-labelledby="new-category-title">
+      <h3 id="new-category-title">Neue Kategorie</h3>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="category-name">Kategoriename</label>
+      <input id="category-name" name="name" value="{{ values.category.name }}" required maxlength="100" autocomplete="off"{% if errors.get('category.name') %} aria-invalid="true"{% endif %}>
+      {{ error('category.name') }}
+      <label for="category-kind">Art</label>
+      <select id="category-kind" name="kind"><option value="expense"{% if values.category.kind == 'expense' %} selected{% endif %}>Ausgabe</option><option value="income"{% if values.category.kind == 'income' %} selected{% endif %}>Einnahme</option></select>
+      {{ error('category.kind') }}
+      <label for="category-parent">Oberkategorie <span class="optional">(optional)</span></label>
+      <select id="category-parent" name="parent_id"><option value="">Keine Oberkategorie</option>{% for parent in categories if parent.is_active %}<option value="{{ parent.id }}"{% if values.category.parent_id == parent.id|string %} selected{% endif %}>{{ parent.name }} ({{ 'Einnahme' if parent.kind == 'income' else 'Ausgabe' }})</option>{% endfor %}</select>
+      <p class="field-help">Ober- und Unterkategorie müssen dieselbe Art haben.</p>
+      {{ error('category.parent_id') }}
+      <button type="submit" class="button">Kategorie anlegen</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

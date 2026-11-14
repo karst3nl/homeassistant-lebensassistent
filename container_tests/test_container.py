@@ -1,6 +1,7 @@
 """Reale Container: TCP-Vertrauenskette, Rechte, Lebenszyklus und Testpersistenz."""
 
 import json
+import re
 
 from container_tests.conftest import PREFIX, DockerSandbox
 
@@ -79,13 +80,14 @@ with Database(Path('/data/lebensassistent.sqlite3')).connect() as connection:
     read_audit = """
 from pathlib import Path
 from lebensassistent.database.connection import Database
+from lebensassistent.database.migrations import MIGRATIONS
 with Database(Path('/data/lebensassistent.sqlite3')).connect() as connection:
     assert connection.execute(
         "SELECT COUNT(*) FROM audit_log WHERE entity_type = 'synthetic'"
     ).fetchone()[0] == 1
     assert connection.execute(
         'SELECT COUNT(*) FROM schema_migrations'
-    ).fetchone()[0] == 1
+    ).fetchone()[0] == len(MIGRATIONS)
 """
     sandbox.docker(
         "exec", "--user", "1000:1000", sandbox.app, "python", "-c", write_marker
@@ -132,6 +134,7 @@ def test_database_is_private_initialized_and_consistent(sandbox: DockerSandbox) 
     code = """
 from pathlib import Path
 from lebensassistent.database.connection import Database
+from lebensassistent.database.migrations import MIGRATIONS
 path = Path('/data/lebensassistent.sqlite3')
 assert path.stat().st_mode & 0o777 == 0o600
 assert path.stat().st_uid == path.stat().st_gid == 1000
@@ -141,6 +144,73 @@ with Database(path).connect() as connection:
     assert connection.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
     assert connection.execute('PRAGMA foreign_key_check').fetchall() == []
     row = connection.execute('SELECT MAX(version) FROM schema_migrations').fetchone()
-    assert row[0] == 1
+    assert row[0] == len(MIGRATIONS)
+    assert connection.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE entity_type='synthetic_upgrade'"
+    ).fetchone()[0] == 1
 """
     sandbox.docker("exec", "--user", "1000:1000", sandbox.app, "python", "-c", code)
+
+
+def test_real_form_writes_and_csrf_failures(sandbox: DockerSandbox) -> None:
+    headers = {"X-Ingress-Path": PREFIX}
+    page = sandbox.request(sandbox.trusted, "/bereiche/finanzen", headers)
+    assert page["status"] == 200
+    match = re.search(r'name="csrf_token" value="([^"]+)"', page["body"])
+    assert match is not None
+    form = {
+        "csrf_token": match[1],
+        "name": "Synthetisches TCP-Konto",
+        "account_type": "checking",
+        "opening_balance": "-10,01",
+        "opening_date": "2026-01-15",
+        "notes": "",
+    }
+    assert (
+        sandbox.request(
+            sandbox.untrusted,
+            "/konten",
+            {**headers, "X-Forwarded-For": "172.30.32.2"},
+            form,
+        )["status"]
+        == 403
+    )
+    assert (
+        sandbox.request(
+            sandbox.trusted,
+            "/konten",
+            headers,
+            {**form, "csrf_token": "synthetic-wrong"},
+        )["status"]
+        == 403
+    )
+    response = sandbox.request(sandbox.trusted, "/konten", headers, form)
+    assert response["status"] == 303
+    assert response["headers"]["location"].startswith(f"{PREFIX}/bereiche/finanzen")
+    category = {
+        "csrf_token": match[1],
+        "name": "Synthetische TCP-Kategorie",
+        "kind": "expense",
+        "parent_id": "",
+    }
+    assert (
+        sandbox.request(sandbox.trusted, "/kategorien", headers, category)["status"]
+        == 303
+    )
+    sandbox.docker("restart", "--time", "10", sandbox.app)
+    sandbox.wait_ready()
+    page = sandbox.request(sandbox.trusted, "/bereiche/finanzen", headers)
+    assert "Synthetisches TCP-Konto" in page["body"]
+    assert "-10,01 €" in page["body"]
+    assert "Synthetische TCP-Kategorie" in page["body"]
+    assert sandbox.request(sandbox.trusted, "/konten", headers, form)["status"] == 403
+    logs = sandbox.docker("logs", sandbox.app)
+    assert "Synthetisches TCP-Konto" not in logs.stdout + logs.stderr
+    assert match[1] not in logs.stdout + logs.stderr
+    sandbox.docker("stop", "--time", "10", sandbox.app)
+    sandbox.docker("rm", sandbox.app)
+    sandbox.start_app()
+    page = sandbox.request(sandbox.trusted, "/bereiche/finanzen", headers)
+    assert "Synthetisches TCP-Konto" in page["body"]
+    assert "-10,01 €" in page["body"]
+    assert "Synthetische TCP-Kategorie" in page["body"]

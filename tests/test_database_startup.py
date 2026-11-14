@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from lebensassistent.database.connection import Database
-from lebensassistent.database.migrations import MigrationError, migrate
+from lebensassistent.database.migrations import MIGRATIONS, MigrationError, migrate
 from lebensassistent.integrations.homeassistant.ingress import create_addon_app
 from lebensassistent.main import create_app
 
@@ -25,7 +25,9 @@ def test_app_initializes_database_and_repeated_start_keeps_history(
             assert client.get("/health").json() == {"status": "ok"}
             assert app.state.database.path == path
     with Database(path).connect() as connection:
-        assert connection.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM audit_log").fetchone()[
+            0
+        ] == len(MIGRATIONS)
 
 
 def test_corrupt_database_prevents_start_without_overwriting_file(
@@ -46,7 +48,10 @@ def test_future_database_prevents_app_start(tmp_path: Path) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
     migrate(database)
     with database.connect() as connection:
-        connection.execute("UPDATE schema_migrations SET version = 999")
+        connection.execute(
+            "UPDATE schema_migrations SET version = 999 "
+            "WHERE version = (SELECT MAX(version) FROM schema_migrations)"
+        )
     with (
         pytest.raises(MigrationError),
         TestClient(create_app(database_path=database.path)),
@@ -83,9 +88,11 @@ def test_cli_migrates_database_without_user_or_finance_data(tmp_path: Path) -> N
         text=True,
         check=True,
     )
-    assert "schema version 1" in result.stdout
+    assert f"schema version {len(MIGRATIONS)}" in result.stdout
     with Database(path).connect() as connection:
-        assert connection.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM audit_log").fetchone()[
+            0
+        ] == len(MIGRATIONS)
 
 
 def test_local_data_directory_is_explicitly_configurable(tmp_path: Path) -> None:

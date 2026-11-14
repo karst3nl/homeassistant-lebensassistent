@@ -1,13 +1,13 @@
 # Entwicklungsfortschritt
 
 ## Stand
-- Status: **Etappen 0.1 bis 0.4 lokal implementiert und geprüft**, App-Version **0.0.2**; Freigabepause.
+- Status: **Etappen 0.1 bis 0.4 und 1.1 lokal implementiert und geprüft**, App-Version **0.0.3**; Freigabepause.
 - Aktiver Branch: `alpha`; `main` nur Platzhalter, nicht bearbeiten.
-- Zuletzt lokal abgeschlossene Etappe: **0.4** — SQLite, Migrationen, Transaktionen und Audit-Grundlage.
-- Geprüft: **111 Tests** in frischer Umgebung: 89 Unit-/API-, 18 Chromium-Browser- und 4 echte Docker-Prüfungen; Lint/Format und Lockfile grün.
+- Zuletzt lokal abgeschlossene Etappe: **1.1** — bedienbare Konten-/Kategorienmasken, Archivierung/Aktivierung und Audit.
+- Geprüft: **212 Tests** in frischer Umgebung: 180 Unit-/API-, 27 Chromium-Browser- und 5 echte Docker-Prüfungen; Lint/Format und Lockfile grün.
 - Vom Nutzer bestätigt: Installation und erste Sichtprüfung von **0.0.1** auf seinem Home Assistant. Gerät, Architektur und HA-Version wurden nicht genannt.
-- Noch nicht geprüft: Update auf **0.0.2** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
-- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.1 abwarten**; noch keine Konten-/Kategorien- oder Finanzfunktionen begonnen.
+- Noch nicht geprüft: Update und Formulare von **0.0.3** auf HA, vollständige HA-Ingress-Session-/Restart-Prüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Nachweis.
+- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 1.2 abwarten**; noch keine Einnahmen-/Ausgabenbuchungen oder Transfers begonnen.
 
 ## Etappenlog
 | Etappe | Status | Tests | Freigabe |
@@ -15,8 +15,9 @@
 | 0.1 Grundgerüst und Health | Lokal abgeschlossen | 3 API-Tests grün; weiterhin Teil der Regression | Fortsetzung mit „weiter“ freigegeben |
 | 0.2 Responsive UI | Lokal abgeschlossen | 25 API-Tests und 18 Browsertests grün; weiterhin Teil der Regression | Fortsetzung mit „weiter“ freigegeben |
 | 0.3 HA-App/Ingress | Lokal abgeschlossen; Installation/Sichtprüfung von 0.0.1 auf HA bestätigt | 81 Tests grün, amd64-Build und lokaler Container-Lebenszyklus geprüft; weitere HA-/ARM-Prüfungen offen | Fortsetzung durch Nutzer freigegeben |
-| 0.4 SQLite/Migration | Lokal abgeschlossen | 111 Tests grün; Fresh-DB, Upgrade, Rollback und persistente DB geprüft | Ergebnis zur Abnahme vorgelegt |
-| 1.x–7.x | Offen | — | Ausstehend |
+| 0.4 SQLite/Migration | Lokal abgeschlossen | 111 Tests grün; weiterhin Teil der Regression | Fortsetzung durch Nutzer freigegeben |
+| 1.1 Konten/Kategorien | Lokal abgeschlossen | 212 Tests grün; erste Masken im Browser und Container geprüft | Ergebnis zur Abnahme vorgelegt |
+| 1.2–7.x | Offen | — | Ausstehend |
 
 Nach jeder Mini-Etappe ausfüllen: Änderung, betroffene Dateien, Testbefehle mit Ergebnis, bekannte Probleme, Datenschutzcheck, Commit-SHA und Freigabe.
 
@@ -456,4 +457,146 @@ Stand.
 - [x] Unit-/API-, Browser-, Migrations- und echte Containerprüfungen ausgeführt.
 - [x] Nutzerbestätigung für Installation/Sichtprüfung von 0.0.1 dokumentiert.
 - [ ] HA-Update-/Restart-/Security-/ARM-Prüfung von 0.0.2 (ausstehend).
-- [ ] Nutzerfreigabe für Etappe 1.1.
+- [x] Nutzerfreigabe für Etappe 1.1 durch „ja los weiter“ (2026-11-14).
+
+## Etappe 1.1 — 2026-11-14
+
+### Freigabe und Umfang
+
+Der Nutzer hat nach dem Abschlussbericht zu 0.4 mit **„ja los weiter“** die
+Etappe 1.1 freigegeben. Ausgangscommit auf `alpha`:
+`df695f3023552f25293cc343b689d661c826ca06`.
+
+Version **0.0.3** enthält erstmals bedienbare Konten-/Kategorienmasken unter
+**Konten & Buchungen**. Keine Buchungen, Transfers, laufende Saldenberechnung
+oder weiteren Funktionen aus 1.2 und später vorgezogen. Die HA-Bestätigung
+des Nutzers gilt unverändert nur für Installation/Sichtprüfung von 0.0.1.
+
+### Änderungen
+
+- Migration **2** ergänzt `accounts` und `categories` mit Constraints und
+  Kategorien-FK. Migration 1 und ihre Prüfsumme bleiben unverändert.
+- `services/values.py`: Eurotext ohne Float in Integer-Cent umwandeln; Komma
+  oder Punkt, maximal zwei Nachkommastellen, signierte int64-Grenzen. Echte
+  ISO-Kalenderdaten ohne unbegründete Zukunftsgrenze prüfen.
+- `services/catalog.py`: strikt validierte Konto-/Kategorieneingaben. Konten
+  mit Name, Art, Anfangssaldo/-datum und optionaler Notiz anlegen, archivieren
+  und wieder aktivieren. Negative Anfangssalden zulässig. Keine normale
+  Änderung von Anfangssaldo/-datum nach Anlage, keine Löschung.
+- Kategorien für Einnahme/Ausgabe, optional aktive Oberkategorie derselben
+  Art. Aktive Kinder verhindern eine Elternarchivierung; Reaktivierung eines
+  Kindes setzt aktive Eltern voraus. Keine Eltern-/Art-Bearbeitung und damit
+  keine neuen Zyklen durch Umhängung.
+- `repositories/catalog.py`: parametrisierter SQL-Zugriff. Änderung und Audit
+  laufen in derselben `BEGIN IMMEDIATE`-Transaktion; ein Auditfehler rollt die
+  Anlage vollständig zurück. Wiederholter Status erzeugt keine Audit-Duplikate.
+- `api/catalog.py`, `forms.py`, `views.py`, `ui.py`: servergerenderte Formulare
+  ohne JavaScript und ohne zusätzliche JSON-API. Pflicht-CSRF-Token pro App-
+  Instanz, konstantzeitlicher Vergleich vor Service-/DB-Aufruf, ergänzende
+  Fetch-Site-/Origin-Authority-Prüfung. URL-Formulare auf 32 KiB/16 eindeutige
+  Felder begrenzt; falsches Encoding, doppelte/unerwartete Felder abgewiesen.
+- Ingress-Marker erst nach tatsächlicher Peer-/Präfixprüfung. Nur dann kann
+  ein einzelner gültiger X-Forwarded-Host als zusätzliche Authority dienen.
+  Kein globales Scheme-Vertrauen in X-Forwarded-Proto; `proxy_headers=False`
+  bleibt erhalten. Authority-Prüfung ist kein vollständiger Scheme-/Origin-
+  Abgleich und ersetzt den CSRF-Token nicht.
+- `accounts.html`, CSS und Startseitenstatus: deutsche responsive Masken mit
+  Fehlermeldungen, Werterhalt, Archivstatus, EUR-/Datumsdarstellung und lokalen
+  Formularpfaden. Anfangssalden als solche bezeichnet, nicht als gebuchte
+  Kontostände. Finanz-/Formularseiten `Cache-Control: no-store`, Jinja-Escaping.
+- `main.py` sowie Ingress-/Testharness-Anbindung erweitert. Gemountete Browser-
+  Test-Apps starten ihre eigenen DB-Lifespans explizit; Daten nur in privaten
+  temporären Verzeichnissen. Keine DB im Repository.
+- Version in HA-Konfiguration, Paket und Docker-Default auf **0.0.3** erhöht.
+  Pydantic **2.14.3** nun direkt/exakt deklariert (bereits vorher als Laufzeit-
+  Abhängigkeit vorhanden), `uv.lock` aktualisiert.
+- README, Changelog, HA-Bedien-/Updateanleitung, Architektur und lokale
+  Entwicklungs-/Testbefehle aktualisiert. Keine produktiven Beispieldaten.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Linux x86_64, Python **3.12.14**, uv **0.13.6**, Chromium **156.0.8078.79**.
+Alle Konten, Kategorien, Namen, Beträge, Notizen und Netzwerkdaten in Tests
+sind synthetisch. Docker verwendet wie zuvor das temporäre CA-Secret ohne
+Kopie der Cloud-CA in das Runtime-Image.
+
+| Befehl / Prüfung | Tatsächliches Ergebnis |
+|---|---|
+| `uv run --locked pytest tests/test_catalog_values.py` | **25 passed** (0,03 s) |
+| `uv run --locked pytest tests/test_catalog_service.py` | **19 passed** (0,14 s) |
+| `uv run --locked pytest tests/test_catalog_http.py` nach Präfix-Fixture-Korrektur | **27 passed** (0,70 s) |
+| Derselbe HTTP-Befehl nach Authority-/Body-/Datums-Grenzfällen | **47 passed** (1,09 s) |
+| `uv run --locked pytest` | **180 passed** (2,02 s), alle bisherigen Unit-/API-Fälle enthalten |
+| `LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium uv run --group browser --locked pytest browser_tests` | **27 passed** (52,18 s) |
+| `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt uv run --locked pytest container_tests` | **5 passed** (34,72 s), danach zusätzliche Log-/Neuerstellungsnachweise ergänzt |
+| `uv sync --locked --group browser` mit separatem `UV_PROJECT_ENVIRONMENT` | Frische Umgebung mit Version 0.0.3 und 29 Paketen erfolgreich eingerichtet |
+| `uv run --group browser --locked pytest tests browser_tests container_tests` mit Chromium-/CA-Konfiguration in dieser Umgebung | **212 passed** (89,27 s): 180 API + 27 Browser + 5 Container, einschließlich aller Ergänzungen |
+| `uv run --locked ruff check .`, `ruff format --check .`, `uv lock --check`, `git diff --check` | Erfolgreich |
+| Visuelle Prüfung der Browserbilder | Mobil hell und Desktop dunkel geprüft; Formulare und Datensätze ohne Seitenoverflow |
+| Unabhängiges Backend-/Schema-/Formular-/CSRF-/Dokumentationsreview | Keine offenen Befunde; Port-0- und Jahresdarstellungsrandfall korrigiert |
+
+Die 25 Wertetests prüfen negative und beide int64-Grenzsalden, ungültige
+Dezimalformen/Exponenten/NaN/Infinity und Kalenderdaten. 19 Servicetests prüfen
+Anlage, Archivierung/Aktivierung, unveränderte Anfangssalden, Kategorienregeln,
+Audit-Rollback und Upgrade mit erhaltener v1-Historie. Die ursprünglichen v1-
+Migration-/Audit-Regressionen bleiben mit expliziter v1-Registry erhalten.
+
+47 HTTP-Fälle prüfen Root/Präfix, Fehlermeldungen, Werterhalt, HTML-Escaping,
+fehlende/falsche CSRF-Tokens, fremde/malformed Authority, Port 0, JSON-/Body-
+Encoding, Größe, doppelte Felder und das Jahr 0001 mit vierstelliger Anzeige.
+Unautorisierte oder ungültige Anfragen erzeugen keine Konto-/Auditänderung.
+
+Neun neue Browserfälle umfassen acht vollständige Formularabläufe bei
+390/1280 Pixeln × hell/dunkel × ohne/mit Präfix und einen XSS-Fall. Sie prüfen
+echte POSTs, Fehlerkorrektur, Cent-/Datumsanzeige, Archivierung/Aktivierung,
+Reload und Skript-Nichtausführung. Die 18 bisherigen Layout-/Navigationstests
+bei 320/390/768/1280 Pixeln bleiben ebenfalls grün.
+
+Das echte Containernetz prüft erlaubte POSTs vom simulierten Supervisor und
+403 bei Peer-Fälschung oder falschem/über Neustart veraltetem Token. Vor Start
+wird mit dem aktuellen Test-Image synthetisch Schema 1 mit einem Test-Audit
+erzeugt; der App-Start migriert auf Schema 2 und erhält diese Historie. Das
+belegt ein Schema-Upgrade, keinen tatsächlichen Wechsel alter/neuer Images.
+Neu angelegte Konten/Kategorien und Anfangssalden bleiben nach Restart und
+kompletter Neuerstellung mit demselben Volume erhalten. Namen und CSRF-Token
+erscheinen nicht in Standardlogs.
+
+### Behobene Fehler und Abgrenzung
+
+Neue Wert-/Service-/HTTP-Tests wurden vor ihren Implementierungen angelegt
+und zunächst erwartungsgemäß rot ausgeführt. Nach Erweiterung auf Schema 2
+wurden die historischen v1-Test-Fixtures explizit auf v1 begrenzt; neue
+Produktivtests prüfen Schema 2. Im ersten HTTP-Lauf fehlte bei 13 Präfixfällen
+die Child-App-Initialisierung im Test-Mount; der Testharness führt die Child-
+Lifespans nun korrekt aus. Danach liefen alle Root-/Präfixfälle grün.
+
+Die ergänzende Authority-Prüfung behandelte anfangs Port 0 durch einen `or`-
+Default wie den Standardport; explizite None-Prüfung und Bereichscheck beheben
+das. Der verpflichtende Token blieb auch vorher unverändert erforderlich.
+`strftime` wurde für vierstellige Jahre durch explizite Formatierung ersetzt.
+Beide Randfälle sind durch HTTP-Tests abgesichert. Lint-/Formatfehler wurden
+in derselben Etappe beseitigt.
+
+**Nicht durchgeführt:** HA-Update/Bedienprüfung von 0.0.3, vollständige HA-
+Login-/Logout-/Restart-/AppArmor-Abnahme, ARM-/Raspberry-Pi- und Safari/iOS-
+Prüfungen. Die Nutzerbestätigung bezieht sich nur auf 0.0.1. Keine Einnahmen,
+Ausgaben, Transfers, Budgets oder weiteren Module aus Folgeetappen begonnen.
+
+### Datenschutz und Abschlussprüfung
+
+Vorgemerkten Diff manuell geprüft und `detect-secrets==1.5.0 scan --no-verify`
+ausgeführt: **keine Funde**. Keine persönlichen Finanzdaten, Zugangsdaten,
+Laufzeitdatenbanken oder Backups im Repository. Die Tokens in Tests werden
+jeweils synthetisch zur Laufzeit erzeugt. Screenshots, Scanprotokoll, frische
+Umgebung und SQLite-Testdateien liegen außerhalb des Repositorys. Eigene
+Docker-Testcontainer, -volumes und -netze sind nach den Tests entfernt;
+die abschließende Ressourcenprüfung fand keine verbliebenen Testressourcen.
+`git diff --cached --check` ist grün. Keine bekannten offenen Fehler im lokal
+geprüften Umfang von Etappe 1.1.
+
+### Abschlusscheckliste
+
+- [x] Etappe 1.1 implementiert, Version 0.0.3 mit ersten bedienbaren Masken.
+- [x] Unit-/API-, Browser-, Migrations- und echte Containerprüfungen ausgeführt.
+- [ ] HA-Update-/Bedien-/Security-/ARM-Prüfung von 0.0.3 (ausstehend).
+- [ ] Nutzerfreigabe für Etappe 1.2.

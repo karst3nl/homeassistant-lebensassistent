@@ -167,11 +167,12 @@ wheels = [
 
 [[package]]
 name = "lebensassistent"
-version = "0.0.2"
+version = "0.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "pydantic" },
     { name = "uvicorn" },
 ]
 
@@ -190,6 +191,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = "==0.162.7" },
     { name = "jinja2", specifier = "==3.1.6" },
+    { name = "pydantic", specifier = "==2.14.3" },
     { name = "uvicorn", specifier = "==0.54.0" },
 ]
 

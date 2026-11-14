@@ -72,7 +72,9 @@ Die separate HA-/Ingress-Konfiguration aus Etappe 0.3 ist in
 hat keine HA-Anmeldung und bleibt ausschließlich auf Loopback.
 
 Die Oberfläche ist unter **http://127.0.0.1:8000/** erreichbar. Sie bietet eine
-Übersicht und sieben weitere navigierbare Modulbereiche als Platzhalter.
+Übersicht und sieben weitere navigierbare Modulbereiche. Unter „Konten &
+Buchungen“ sind mit Datenbank jetzt Konten und Kategorien bedienbar; die
+übrigen Bereiche bleiben Platzhalter.
 Alle Texte, Styles und Icons werden lokal ausgeliefert; JavaScript und externe
 Fonts/CDNs sind nicht erforderlich. Die Navigation funktioniert auch mit
 Tastatur und ohne JavaScript. Ein Sprunglink führt direkt zum Hauptinhalt.
@@ -100,11 +102,12 @@ privaten Pfad ausdrücklich erneut verwenden. Der Pfad muss absolut sein;
 fehlende Elternverzeichnisse werden nicht automatisch angelegt.
 
 Der CLI-Befehl initialisiert oder aktualisiert die Datei und meldet aktuell
-`Database ready; schema version 1`. Der Server führt dieselbe Prüfung vor dem
+`Database ready; schema version 2`. Der Server führt dieselbe Prüfung vor dem
 ersten HTTP-Zugriff erneut idempotent aus. In HA ist der Pfad unabhängig von
 dieser Entwicklungsvariable fest auf `/data/lebensassistent.sqlite3` gesetzt.
 
-Aktuell gibt es nur `schema_migrations` und `audit_log`. Neue Verbindungen
+Aktuell gibt es `schema_migrations`, `audit_log`, `accounts` und `categories`.
+Migration 1 bleibt unverändert, Migration 2 ergänzt die beiden Fachtabellen. Neue Verbindungen
 prüfen WAL und Fremdschlüssel, verwenden `synchronous=FULL` und einen
 Lock-Timeout von fünf Sekunden. Schreibvorgänge verwenden explizite
 Transaktionen; Audit-Einträge dürfen nur innerhalb derselben aktiven
@@ -116,6 +119,34 @@ geänderten Migrationen bricht der Start ab. Es gibt keinen automatischen
 Reset auf eine leere Datenbank. SQLite-UPDATE/DELETE auf Audit-Einträgen sind
 gesperrt; das ist kein Schutz gegen administrativen Dateizugriff.
 
+### Konten und Kategorien (Etappe 1.1, Version 0.0.3)
+
+Mit dem oben konfigurierten Datenbankstart
+**http://127.0.0.1:8000/bereiche/finanzen** öffnen. Dort lassen sich Konten und
+Kategorien anlegen, archivieren und wieder aktivieren. Die Testanleitung steht
+in [DOCS.md](../DOCS.md). Ohne expliziten lokalen Datenpfad bleiben die
+Schreibfunktionen nicht verfügbar; eine Repository-Datenbank wird nicht erzeugt.
+
+Eurotext wird nur mit Integerarithmetik in Cent umgewandelt. Komma oder Punkt
+als Dezimalzeichen, maximal zwei Nachkommastellen, keine Gruppierung oder
+Exponenten. Beide signierten SQLite-int64-Grenzen und negative Anfangssalden
+werden geprüft. Öffnungsdatum und Anfangssaldo sind nach Anlage nicht frei
+änderbar. Es gibt noch keine Buchungen, Transfers oder laufende Saldenberechnung.
+
+Die Formulare verwenden normale HTML-POSTs, keinen JavaScript-Client und keine
+zusätzliche JSON-API. Ein zufälliger CSRF-Token pro App-Instanz ist zwingend;
+`compare_digest` prüft ihn vor Service-/DB-Aufrufen. Nach Neustart alte Seiten
+neu laden. Finanzseiten und Formularantworten haben `Cache-Control: no-store`.
+URL-kodierte Bodies sind auf 32 KiB und 16 eindeutige Felder begrenzt;
+andere Encodings, doppelte oder unerwartete Felder werden abgewiesen.
+
+Fetch-Site und die Origin-Authority werden zusätzlich geprüft. Nur nach der
+Ingress-Peer-/Präfixprüfung darf ein einzelner gültiger X-Forwarded-Host als
+zusätzliche Authority dienen. Kommagetrennte, doppelte und ungültige Angaben
+werden dabei abgewiesen. Das ist kein vollständiger Scheme-/Origin-Abgleich
+und ersetzt den CSRF-Token nicht. `proxy_headers=False` bleibt erhalten;
+X-Forwarded-Proto schreibt das ASGI-Scheme nicht um.
+
 ### Tests und Lint
 
 ```sh
@@ -125,7 +156,7 @@ uv run --locked ruff format --check .
 uv lock --check
 ```
 
-pytest prüft **89 Unit-/API-Tests ohne Browser oder Docker**:
+pytest prüft **180 Unit-/API-Tests ohne Browser oder Docker**:
 
 - `GET /health`: HTTP 200, JSON-Content-Type und exakte Antwort.
 - `POST /health` mit synthetischem Inhalt: HTTP 405; Health bleibt unverändert.
@@ -147,6 +178,15 @@ pytest prüft **89 Unit-/API-Tests ohne Browser oder Docker**:
 - Beschädigte oder neuere Datenbanken verhindern den Start; Standard-Imports
   erzeugen keine Repository-Datenbank. Der explizite lokale Datenpfad und das
   CLI-Migrationstool werden in eigenen Prozessen geprüft.
+- Centkonvertierung, Datums-/int64-Grenzen, Kontenanlage, Archivierung und Audit
+  in derselben Transaktion; bei Auditfehlern bleibt kein halber Datensatz.
+- Kategorienhierarchie mit gleicher Art, aktiven Eltern und kontrollierter
+  Archivierung; Upgrade von Schema 1 auf 2 mit erhaltener Audit-Historie.
+- HTML-Formulare einschließlich Präfix, XSS-Escaping, CSRF-/Authority- und
+  Body-/Encoding-Grenzfälle. Unzulässige Anfragen ändern keine Konten/Audits.
+
+Die ursprünglichen Migration-1-/Audit-Grundlagentests laufen weiterhin mit
+expliziter v1-Registry; separate Tests prüfen die neue produktive Registry.
 
 Einzelne Bereiche lassen sich z. B. mit
 `uv run --locked pytest tests/test_ingress.py` gezielt prüfen.
@@ -173,12 +213,17 @@ uv run --group browser --locked pytest browser_tests
 uv run --group browser --locked pytest tests browser_tests
 ```
 
-Der erste Befehl führt **18 Browsertests** aus, der zweite die API-/Browser-
-Suite mit **107 Tests**. Die Browserprüfungen starten selbst
+Der erste Befehl führt **27 Browsertests** aus, der zweite die API-/Browser-
+Suite mit **207 Tests**. Die Browserprüfungen starten selbst
 einen lokalen Uvicorn-Prozess auf einem freien Loopback-Port und beenden ihn
 anschließend. Sie prüfen 320/390/768/1280 Pixel, beide Themes, alle
 Navigationsziele, Tastatur-Sprunglink, Seitenoverflow, Asset-/Konsolenfehler,
 externe Anfragen sowie 404-Rücknavigation und einen Theme-Wechsel im Betrieb.
+Zusätzlich werden acht vollständige Konten-/Kategorien-Formularabläufe bei
+390/1280 Pixeln, hell/dunkel und mit/ohne Präfix sowie ein XSS-Fall geprüft.
+Fehlerkorrektur, Centdarstellung, Archivierung/Aktivierung und Reload laufen
+dabei im echten Browser. Eigene temporäre Datenbanken werden über die explizit
+gestarteten Lifespans der gemounteten Apps initialisiert.
 Screenshots und Serverlogs werden im temporären pytest-Verzeichnis abgelegt.
 
 Alternativ kann ein vorhandenes Chromium verwendet werden (in dieser
@@ -194,7 +239,9 @@ Die Browsertests verwenden einen synthetischen Mount unter
 `/synthetic-ingress/`. Zum manuellen Prüfen derselben Testkonfiguration:
 
 ```sh
-uv run --locked uvicorn browser_tests.server:app --host 127.0.0.1 --port 8000
+umask 077
+task_browser_data_dir=$(mktemp -d)
+LEBENSASSISTENT_BROWSER_DATA_DIR="$task_browser_data_dir" uv run --locked uvicorn browser_tests.server:app --host 127.0.0.1 --port 8000
 ```
 
 Dann **http://127.0.0.1:8000/synthetic-ingress/** öffnen. Navigation, Styles,
@@ -224,7 +271,7 @@ docker build --build-arg BUILD_ARCH=amd64 -t lebensassistent:alpha .
 uv run --locked pytest container_tests
 ```
 
-Die **4 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
+Die **5 Containerprüfungen** bauen ihr eigenes Image und erzeugen ausschließlich
 UUID-benannte Testcontainer, ein privates Volume und ein internes Testnetz
 mit Subnetz `172.30.32.0/24`. Der Entwicklungs-Dockerdaemon muss dieses Netz
 frei haben. Es werden keine Hostports geöffnet. Ein Client mit TCP-Adresse
@@ -232,7 +279,12 @@ frei haben. Es werden keine Hostports geöffnet. Ein Client mit TCP-Adresse
 und Header-Fälschungen. Die Tests prüfen tatsächliche Prozessrechte, `/data`,
 geordnete Stop-/Start-/Restart-Vorgänge und synthetische Persistenz bis zur
 Container-Neuerstellung. Dabei werden zusätzlich DB-Integrität, WAL/FK und
-Audit-/Migrationshistorie nach dem Neustart geprüft. Die SQLite-Datei unter
+Audit-/Migrationshistorie nach dem Neustart geprüft. Vor dem App-Start wird
+synthetisch Schema 1 mit einem Test-Audit angelegt; der Start migriert auf
+Schema 2 und erhält die Historie. Das ist ein Schema-Upgrade, kein behaupteter
+Wechsel zwischen zwei alten/neuen Containerimages. Echte TCP-POSTs prüfen
+Konten/Kategorien, CSRF-/Peer-Abweisung und Persistenz über Restart/Neuerstellung.
+Die SQLite-Datei unter
 `/data` hat UID/GID 1000 und Modus 0600. Anschließend werden nur die eigenen Testressourcen
 entfernt. Build- und Serverlogs liegen im temporären pytest-Verzeichnis.
 
@@ -258,14 +310,14 @@ Vollständige lokale Regression mit Browser **und** Docker:
 uv run --group browser --locked pytest tests browser_tests container_tests
 ```
 
-Das sind **111 Tests**. In dieser Cloud-Umgebung werden zusätzlich
+Das sind **212 Tests**. In dieser Cloud-Umgebung werden zusätzlich
 `LEBENSASSISTENT_CHROMIUM_EXECUTABLE=/usr/bin/chromium` und
 `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt` gesetzt.
 Paket-/Image-Downloads sind nur für Einrichtung und Build erforderlich.
 Der Container-Test selbst läuft in einem internen Netz ohne externe Dienste.
 
 Die Installation und erste Sichtprüfung von 0.0.1 auf HA wurden vom Nutzer
-bestätigt. Das Update auf 0.0.2, Sessionprüfung, HA-Restart, AppArmor-Einbindung
+bestätigt. Das Update auf 0.0.3, Sessionprüfung, HA-Restart, AppArmor-Einbindung
 und der ARM-Nachweis sind weiterhin offen. Für die HA-Prüfung ausschließlich die Repository-URL
 mit **`#alpha`** aus [DOCS.md](../DOCS.md) verwenden. Der hier verfügbare
 BuildKit-Worker unterstützt ausschließlich amd64; kein ARM- oder Zielgerätetest
@@ -292,11 +344,16 @@ src/lebensassistent/
         __init__.py
         health.py                   # GET /health
         ui.py                       # HTML-Seiten, lokale URLs und Fehlerseiten
+        views.py                    # gemeinsames Rendering/Formatierung
+        catalog.py                  # Konten-/Kategorienformulare
+        forms.py                    # CSRF, Authority und begrenztes Form-Parsing
     frontend/
         templates/                  # Basis, Übersicht, Platzhalter, Fehlerseite
         static/                     # lokales CSS und SVG-Icon
     integrations/homeassistant/     # Ingress-Schutz und fester HA-Entrypoint
     database/                       # Connections, Migrationen, Audit und CLI
+    services/                       # Konten/Kategorien und Cent-/Datumswerte
+    repositories/                   # parametrisierter Katalog-Datenzugriff
 tests/
     test_health.py                  # Health-Vertrag
     test_ui.py                      # synthetische API-/Präfix-Tests
@@ -307,10 +364,13 @@ tests/
     test_migrations.py              # Fresh-DB, Upgrades und Versionshistorie
     test_audit.py                   # atomare, unveränderliche Audit-Einträge
     test_database_startup.py        # Startfehler, explizite Pfade und CLI
+    test_catalog_values.py          # Geld-/Datumskonvertierung
+    test_catalog_service.py         # Fachregeln, Audit und Upgrade
+    test_catalog_http.py            # Formulare, CSRF und Eingabegrenzen
 browser_tests/                      # separat ausführbare Playwright-Regression
 container_tests/                    # echter Build und isolierter Lebenszyklus
 docs/                               # verbindliche Vorgaben und Ergebnisse
 ```
 
 Weitere Schichten aus `ARCHITEKTUR.md` werden erst in ihrer jeweiligen Etappe
-angelegt. Etappe 1.1 beginnt ausschließlich nach ausdrücklicher Freigabe.
+angelegt. Etappe 1.2 beginnt ausschließlich nach ausdrücklicher Freigabe.

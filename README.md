@@ -11,13 +11,15 @@ No personal financial information, real account data, credentials, or production
 Etappen 0.1 und 0.2 stellen einen lokalen FastAPI-Webserver mit responsiver
 deutscher Basisoberfläche, Navigation und automatischem Hell-/Dunkel-Theme
 bereit. `GET /health` liefert HTTP 200 und `{"status":"ok"}`.
-Die Modulbereiche sind als „In Vorbereitung“ gekennzeichnet. Etappe 0.3 ergänzt
+Die übrigen Modulbereiche sind als „In Vorbereitung“ gekennzeichnet. Etappe 0.3 ergänzt
 eine experimentelle HA-App-Verpackung mit Ingress-Schutz und privatem `/data`.
-Version **0.0.2** ergänzt die SQLite-Grundlage mit Migrationen und Audit unter
-`/data`. Die Oberfläche enthält weiterhin Platzhalter; Konten und Buchungen
-folgen in späteren Etappen. Docker wurde lokal auf amd64 geprüft. Die
-Installation/Sichtprüfung von 0.0.1 auf HA wurde vom Nutzer bestätigt; das
-0.0.2-Update sowie vollständige HA-Security-/ARM-Prüfungen stehen noch aus.
+Version **0.0.3** bietet unter **Konten & Buchungen** erste Masken zum Anlegen,
+Archivieren und Aktivieren von Konten und Kategorien. Anfangssalden werden
+centgenau gespeichert. SQLite, Migrationen und Audit liegen unter `/data`.
+Buchungen und weitere Module folgen in späteren Etappen. Docker wurde lokal
+auf amd64 geprüft. Die Installation/Sichtprüfung von 0.0.1 auf HA wurde vom
+Nutzer bestätigt; die Aktualisierung auf 0.0.3 sowie vollständige HA-Security-/
+ARM-Prüfungen stehen noch aus.
 
 Die [HA-App-Anleitung](DOCS.md) verwendet ausschließlich das Repository mit
 **`#alpha`**. Es werden keine Hostports veröffentlicht.

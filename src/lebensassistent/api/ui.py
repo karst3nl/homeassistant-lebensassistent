@@ -1,79 +1,15 @@
-"""Statische Seiten; Pfade stammen ausschließlich aus dem ASGI-Kontext."""
-
-from pathlib import Path
-from typing import NamedTuple
+"""Seitenrouting, lokale Assets und Browser-Fehlerseiten."""
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
-FRONTEND = Path(__file__).resolve().parents[1] / "frontend"
-templates = Jinja2Templates(directory=FRONTEND / "templates")
+from lebensassistent.api.catalog import finance_context
+from lebensassistent.api.views import FRONTEND, SECTIONS, render
+
 router = APIRouter()
-
-
-class Section(NamedTuple):
-    key: str
-    title: str
-    description: str
-    icon: str
-
-
-SECTIONS = (
-    Section(
-        "finanzen", "Konten & Buchungen", "Einnahmen und Ausgaben im Blick.", "wallet"
-    ),
-    Section(
-        "fixkosten",
-        "Fixkosten & Planung",
-        "Regelmäßige Kosten vorausschauend planen.",
-        "calendar",
-    ),
-    Section(
-        "sparziele", "Sparziele", "Schritt für Schritt deinen Zielen näher.", "target"
-    ),
-    Section(
-        "fahrzeuge", "Fahrzeuge", "Tanken, Wartung und Termine an einem Ort.", "car"
-    ),
-    Section(
-        "projekte", "Projekte", "Ideen ordnen und Vorhaben voranbringen.", "folder"
-    ),
-    Section(
-        "zeit",
-        "Zeit & Kalender",
-        "Aufgaben, Termine und Zeit zusammenbringen.",
-        "clock",
-    ),
-    Section(
-        "einstellungen",
-        "Einstellungen",
-        "Lebensassistent passend zu deinem Alltag.",
-        "settings",
-    ),
-)
-
-
-def render(
-    request: Request, template: str, *, status_code: int = 200, **context: object
-) -> Response:
-    def local_url_for(name: str, **params: str) -> str:
-        prefix = request.scope.get("root_path", "").rstrip("/")
-        return f"{prefix}{request.app.url_path_for(name, **params)}"
-
-    return templates.TemplateResponse(
-        request=request,
-        name=template,
-        context={
-            "sections": SECTIONS,
-            "active": "",
-            "url_for": local_url_for,
-            **context,
-        },
-        status_code=status_code,
-    )
 
 
 @router.get("/", response_class=HTMLResponse, name="home")
@@ -86,6 +22,14 @@ async def section(request: Request, section_key: str) -> Response:
     selected = next((item for item in SECTIONS if item.key == section_key), None)
     if selected is None:
         raise HTTPException(status_code=404)
+    if selected.key == "finanzen":
+        return render(
+            request,
+            "accounts.html",
+            title=selected.title,
+            active=selected.key,
+            **finance_context(request),
+        )
     return render(
         request,
         "section.html",
@@ -107,7 +51,7 @@ def install_ui(application: FastAPI) -> None:
         if (
             isinstance(request.scope.get("endpoint"), StaticFiles)
             or request.scope["path"] in health_paths
-            or exc.status_code not in (404, 405)
+            or exc.status_code not in (403, 404, 405)
             or "text/html" not in request.headers.get("accept", "")
         ):
             return await http_exception_handler(request, exc)
@@ -116,6 +60,11 @@ def install_ui(application: FastAPI) -> None:
             if exc.status_code == 404
             else ("Anfrage nicht unterstützt", "Diese Seite lässt sich nur anzeigen.")
         )
+        if exc.status_code == 403:
+            title, message = (
+                "Anfrage nicht zulässig",
+                "Bitte lade die Seite neu und versuche es erneut.",
+            )
         response = render(
             request,
             "error.html",

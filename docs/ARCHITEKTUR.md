@@ -17,9 +17,9 @@ Diese Schichten beschreiben die **Zielstruktur**. Der tatsächlich implementiert
 ## SQLite-Grundlage (Etappe 0.4)
 
 `database/` enthält eine Connection-Factory, explizite Transaktionsgrenzen,
-eine unveränderliche Migrationsregistry und den Audit-Schreibhelfer. Zunächst
-existieren nur `schema_migrations` und `audit_log`. Fachliche Tabellen folgen
-in ihren jeweiligen Etappen.
+eine unveränderliche Migrationsregistry und den Audit-Schreibhelfer. Migration 1
+legt `schema_migrations` und `audit_log` an; Migration 2 ergänzt in Etappe 1.1
+`accounts` und `categories`. Weitere Tabellen folgen in ihren jeweiligen Etappen.
 
 Jede Verbindung aktiviert WAL, Fremdschlüssel, vollständige Synchronisierung
 und einen begrenzten Lock-Timeout. Migrationen beginnen vor dem Lesen der
@@ -31,6 +31,30 @@ Der HA-Entrypoint übergibt fest `/data/lebensassistent.sqlite3`. Die Migration
 läuft im App-Lifespan vor dem ersten HTTP-Zugriff und nach dem Rechteabwurf.
 Die lokale Entwicklung verwendet nur bei expliziter Pfadangabe eine Datenbank;
 Imports und die Standard-Test-App erzeugen keine Repository-Datenbank.
+
+## Konten und Kategorien (Etappe 1.1)
+
+`services/catalog.py` validiert die Fachoperationen und hält Änderung und Audit
+in derselben Transaktion. `repositories/catalog.py` kapselt das parametrisierte
+SQL. Anfangssaldo und Startdatum sind nur bei Anlage setzbar; Statuswechsel
+ändern diese Werte nicht. Archivierung ist reversibel und löscht keine Historie.
+
+Kategorien können bei Anlage eine aktive Oberkategorie derselben Art erhalten.
+Ein zusammengesetzter FK sichert die Art; aktive Kinder verhindern eine
+Elternarchivierung. Es gibt keine Umhängung und dadurch keine neuen Zyklen.
+
+Die HTTP-Schicht rendert HTML-Formulare ohne JavaScript. Ein zufälliger Token pro
+App-Instanz ist für jeden schreibenden Aufruf erforderlich; Vergleich konstantzeitlich.
+Fetch-Site und Origin-Authority werden ergänzend geprüft. X-Forwarded-Host wird
+nur nach bestätigter Ingress-Prüfung als zusätzliche Authority berücksichtigt;
+X-Forwarded-Proto verändert weder ASGI-Scheme noch Authentifizierung. Der
+Authority-Abgleich ist keine vollständige Scheme-/Origin-Prüfung und ersetzt
+den Token nicht. Finanzseiten sind nicht cachebar; Jinja maskiert Benutzereingaben.
+
+`services/values.py` verarbeitet Eurotext ausschließlich mit Integerarithmetik.
+Integer-Cent bleiben im signierten SQLite-64-Bit-Bereich; negative Anfangssalden
+sind zulässig. Konto-/Kategorieeingaben verwenden strikt validierte DTOs.
+Es gibt noch keine Transaktionstabelle oder Geldbewegungen aus Etappe 1.2.
 
 ## Datenschutz / Betrieb
 - Alle privaten Laufzeitdaten bleiben unter HA-App-`/data` und werden niemals committet.

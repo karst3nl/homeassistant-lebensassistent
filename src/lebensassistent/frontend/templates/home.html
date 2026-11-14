@@ -18,7 +18,7 @@
     {% for item in sections if item.key != 'einstellungen' %}
     <a class="module-card" href="{{ url_for('section', section_key=item.key) }}">
       <span class="module-icon"><svg class="icon" aria-hidden="true"><use href="#icon-{{ item.icon }}"/></svg></span>
-      <span class="module-status">In Vorbereitung</span>
+      <span class="module-status">{{ 'Konten & Kategorien verfügbar' if item.key == 'finanzen' else 'In Vorbereitung' }}</span>
       <h3>{{ item.title }}</h3>
       <p>{{ item.description }}</p>
       <span class="module-link">Bereich ansehen<svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></span>

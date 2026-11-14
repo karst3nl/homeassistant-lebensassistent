@@ -16,12 +16,15 @@ HTTP_CLIENT = """
 import json, sys
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.parse import urlencode
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args):
         return None
 opener = build_opener(ProxyHandler({}), NoRedirect())
 try:
-    request = Request(sys.argv[1], headers=json.loads(sys.argv[2]))
+    form = json.loads(sys.argv[3])
+    body = urlencode(form).encode() if form is not None else None
+    request = Request(sys.argv[1], data=body, headers=json.loads(sys.argv[2]))
     response = opener.open(request, timeout=5)
 except HTTPError as error:
     response = error
@@ -123,7 +126,11 @@ class DockerSandbox:
         self.wait_ready()
 
     def request(
-        self, peer: str, path: str, headers: dict[str, str] | None = None
+        self,
+        peer: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        form: dict[str, str] | None = None,
     ) -> dict:
         result = self.docker(
             "exec",
@@ -133,6 +140,7 @@ class DockerSandbox:
             HTTP_CLIENT,
             f"http://{self.app}:8099{path}",
             json.dumps(headers or {}),
+            json.dumps(form),
         )
         return json.loads(result.stdout)
 
@@ -174,6 +182,36 @@ def sandbox(tmp_path_factory: pytest.TempPathFactory) -> Iterator[DockerSandbox]
             sandbox.network,
         )
         sandbox.docker("volume", "create", sandbox.volume)
+        seed = """
+from pathlib import Path
+from lebensassistent.integrations.homeassistant.runtime import (
+    DATA_DIR, prepare_data_directory, drop_privileges)
+from lebensassistent.database.connection import Database, transaction
+from lebensassistent.database.migrations import MIGRATIONS, migrate
+from lebensassistent.database.audit import append_audit
+import os
+os.umask(0o077)
+prepare_data_directory(DATA_DIR)
+drop_privileges()
+database = Database(Path('/data/lebensassistent.sqlite3'))
+migrate(database, MIGRATIONS[:1])
+with database.connect() as connection, transaction(connection):
+    append_audit(connection, entity_type='synthetic_upgrade', entity_id=1,
+                 action='test', after={'label': 'synthetic prior audit'})
+"""
+        sandbox.docker(
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--read-only",
+            "--mount",
+            f"type=volume,src={sandbox.volume},dst=/data",
+            sandbox.image,
+            "python",
+            "-c",
+            seed,
+        )
         for name, address in (
             (sandbox.trusted, "172.30.32.2"),
             (sandbox.untrusted, "172.30.32.4"),

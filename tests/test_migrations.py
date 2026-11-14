@@ -7,11 +7,16 @@ import pytest
 
 from lebensassistent.database.connection import Database
 from lebensassistent.database.migrations import (
-    MIGRATIONS,
+    MIGRATIONS as CURRENT_MIGRATIONS,
+)
+from lebensassistent.database.migrations import (
     Migration,
     MigrationError,
     migrate,
 )
+
+# Keep the original v1 harness isolated from later production migrations.
+MIGRATIONS = CURRENT_MIGRATIONS[:1]
 
 SYNTHETIC_V2 = Migration(
     2,
@@ -25,8 +30,8 @@ SYNTHETIC_V3 = Migration(
 
 def test_fresh_database_and_repeated_start_are_idempotent(tmp_path: Path) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    assert migrate(database) == 1
-    assert migrate(database) == 1
+    assert migrate(database, MIGRATIONS) == 1
+    assert migrate(database, MIGRATIONS) == 1
     with database.connect() as connection:
         assert (
             connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
@@ -56,7 +61,7 @@ def test_upgrade_preserves_synthetic_rows_and_audit(tmp_path: Path) -> None:
 
 def test_failed_upgrade_rolls_back_ddl_data_versions_and_audit(tmp_path: Path) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    migrate(database)
+    migrate(database, MIGRATIONS)
     broken = Migration(
         3,
         "synthetic_broken_upgrade",
@@ -116,7 +121,7 @@ def test_newer_database_is_rejected_without_deleting_data(tmp_path: Path) -> Non
     database = Database(tmp_path / "synthetic.sqlite3")
     migrate(database, (*MIGRATIONS, SYNTHETIC_V2))
     with pytest.raises(MigrationError):
-        migrate(database)
+        migrate(database, MIGRATIONS)
     with database.connect() as connection:
         assert (
             connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[
@@ -128,7 +133,7 @@ def test_newer_database_is_rejected_without_deleting_data(tmp_path: Path) -> Non
 
 def test_changed_migration_checksum_is_rejected(tmp_path: Path) -> None:
     database = Database(tmp_path / "synthetic.sqlite3")
-    migrate(database)
+    migrate(database, MIGRATIONS)
     changed = Migration(1, MIGRATIONS[0].name, (*MIGRATIONS[0].statements, "SELECT 1"))
     with pytest.raises(MigrationError, match="history"):
         migrate(database, (changed,))
