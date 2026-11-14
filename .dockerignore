@@ -1,0 +1,17 @@
+# Nur Paketquellen und gesperrte Build-Eingaben übertragen.
+**
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!src/**
+**/__pycache__/
+**/*.py[cod]
+**/.env*
+**/secrets.yaml
+**/*.key
+**/*.pem
+**/*.db
+**/*.db-*
+**/*.sqlite*

@@ -11,8 +11,13 @@ No personal financial information, real account data, credentials, or production
 Etappen 0.1 und 0.2 stellen einen lokalen FastAPI-Webserver mit responsiver
 deutscher Basisoberfläche, Navigation und automatischem Hell-/Dunkel-Theme
 bereit. `GET /health` liefert HTTP 200 und `{"status":"ok"}`.
-Die Modulbereiche sind als „In Vorbereitung“ gekennzeichnet; Finanzverwaltung,
-Datenbank und Home-Assistant-Verpackung folgen in späteren Etappen.
+Die Modulbereiche sind als „In Vorbereitung“ gekennzeichnet. Etappe 0.3 ergänzt
+eine experimentelle HA-App-Verpackung mit Ingress-Schutz und privatem `/data`.
+Finanzverwaltung und Datenbank folgen in späteren Etappen. Docker wurde lokal
+auf amd64 geprüft; echte HA-OS-/Ingress- und ARM-Prüfungen stehen noch aus.
+
+Die [HA-App-Anleitung](DOCS.md) verwendet ausschließlich das Repository mit
+**`#alpha`**. Es werden keine Hostports veröffentlicht.
 
 Einrichtung, Projektstruktur sowie Start- und Testbefehle stehen in
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#lokale-entwicklung).

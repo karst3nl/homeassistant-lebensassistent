@@ -1,19 +1,19 @@
 # Entwicklungsfortschritt
 
 ## Stand
-- Status: **Etappen 0.1 und 0.2 lokal implementiert und geprüft**; Freigabepause.
+- Status: **Etappen 0.1 bis 0.3 lokal implementiert und geprüft**; HA-/ARM-Abnahme noch offen, Freigabepause.
 - Aktiver Branch: `alpha`; `main` nur Platzhalter, nicht bearbeiten.
-- Zuletzt abgeschlossene Etappe: **0.2** — responsive Basisoberfläche, Navigation, Theme und lokale Ingress-Pfadkompatibilität.
-- Geprüft: 25 Unit-/API-Tests, 18 echte Chromium-Browsertests, Lint/Format, Lockfile und Paketinhalt. Lokale Präfixsimulation ersetzt keinen HA-Laufzeittest.
-- Noch nicht geprüft: Home-Assistant-Integration, Ingress, ARM-/Raspberry-Pi-Betrieb. Datenbankmigrationen sind mangels Datenbank noch nicht anwendbar.
-- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 0.3 abwarten**; noch keine Arbeiten daran begonnen.
+- Zuletzt lokal abgeschlossene Etappe: **0.3** — HA-Verpackung, Ingress-Schutz, privater Datenpfad und Container-Lebenszyklus.
+- Geprüft: **81 Tests** in frischer Umgebung: 60 Unit-/API-, 18 Chromium-Browser- und 3 echte Docker-Prüfungen; Lint/Format, Lockfile und Secret-Scan grün.
+- Noch nicht geprüft: echte HA-OS-Installation, HA-Ingress-Sessionprüfung, AppArmor-Einbindung und ARM-/Raspberry-Pi-Betrieb. Es existiert noch keine Datenbank.
+- Nächster Schritt: **Explizite Nutzerfreigabe für Etappe 0.4 abwarten**; noch keine Arbeiten daran begonnen.
 
 ## Etappenlog
 | Etappe | Status | Tests | Freigabe |
 |---|---|---|---|
 | 0.1 Grundgerüst und Health | Lokal abgeschlossen | 3 API-Tests grün; weiterhin Teil der Regression | Fortsetzung mit „weiter“ freigegeben |
-| 0.2 Responsive UI | Lokal abgeschlossen | 25 API-Tests und 18 Browsertests grün; Lint/Format und Paketinhalt geprüft | Ergebnis zur Abnahme vorgelegt |
-| 0.3 HA-App/Ingress | Offen | — | Ausstehend |
+| 0.2 Responsive UI | Lokal abgeschlossen | 25 API-Tests und 18 Browsertests grün; weiterhin Teil der Regression | Fortsetzung mit „weiter“ freigegeben |
+| 0.3 HA-App/Ingress | Lokal abgeschlossen; HA-/ARM-Abnahme offen | 81 Tests grün, amd64-Build und lokaler Container-Lebenszyklus geprüft | Ergebnis zur Abnahme vorgelegt |
 | 0.4 SQLite/Migration | Offen | — | Ausstehend |
 | 1.x–7.x | Offen | — | Ausstehend |
 
@@ -200,4 +200,119 @@ Pfadfälle. Es bleiben keine bekannten Fehler innerhalb von Etappe 0.2.
 - [x] Etappe 0.2 implementiert.
 - [x] API-, Browser- und Regressionstests lokal tatsächlich ausgeführt.
 - [ ] HA-Laufzeittest (ausstehend).
-- [ ] Nutzerfreigabe für Etappe 0.3.
+- [x] Nutzerfreigabe für Etappe 0.3 durch „weiter“ (2026-11-14).
+
+## Etappe 0.3 — 2026-11-14
+
+### Freigabe und Umfang
+
+Der Nutzer hat nach dem Abschlussbericht zu 0.2 mit **„weiter“** die nächste
+Etappe freigegeben und die laufende Arbeit nochmals mit „mache weiter“
+bestätigt. Ausschließlich 0.3 wurde umgesetzt; Ausgangscommit auf `alpha`:
+`9fb4328e56a455d927d1dc1f90db28f6ec1f57ca`.
+
+### Änderungen
+
+- `config.yaml`, `repository.yaml`: experimentelle HA-App am Repository-Root,
+  Ingress-Port 8099, manueller Start als Vorgabe, leere Optionen. Keine
+  Hostports, zusätzlichen API-Rechte, Geräte oder Host-Verzeichnismounts.
+  Als Zielarchitekturen sind amd64 und aarch64 konfiguriert; getestet wurde
+  ausschließlich amd64. HA stellt den privaten `/data`-Mount automatisch bereit.
+- `Dockerfile`, `.dockerignore`: mehrstufiger Build mit exakt gepinnten
+  Multiarch-Index-Digests für Python 3.12.14 und uv 0.13.6. Nur Paketquellen
+  und gesperrte Build-Eingaben gelangen in den Kontext; final wird eine nicht
+  editierbare virtuelle Umgebung ohne Dev-/Browser-Werkzeuge übernommen.
+- `integrations/homeassistant/ingress.py`: echter TCP-Peer wird vor allen
+  Headern geprüft. Nur `172.30.32.2` ist erlaubt. Genau ein streng validierter
+  `X-Ingress-Path` setzt das Präfix pro Anfrage. Forwarded-/User-Header ersetzen
+  keine Authentifizierung. Redirects bleiben originrelativ; Präfix und Query
+  bleiben erhalten. Direkte Zugriffe liefern 403, auch auf `/health`.
+- `runtime.py`, `__main__.py`: fester Container-Einstieg, nur `/data` selbst
+  wird vorbereitet (UID/GID 1000, Modus 0700). Danach Gruppen/GID/UID absenken,
+  Schreibprobe mit exklusiver temporärer Datei, erst dann Uvicorn starten.
+  `umask(0o077)`, `proxy_headers=False`, Access-Logs aus. Keine bestehenden
+  Daten löschen oder rekursiv umstellen; keine Datenbank angelegt.
+- `tests/test_ingress.py`, `test_addon_runtime.py`, `test_addon_config.py`:
+  35 neue Unit-/API-Fälle. PyYAML **6.0.3** nur für Entwicklungstests ergänzt
+  und mit `uv.lock` exakt festgehalten.
+- `container_tests/`: echter Build, isoliertes Netz mit erlaubtem und fremdem
+  TCP-Peer, Prozess-/Datenrechte sowie Stop/Start/Restart/Container-Neuerstellung.
+  Nur UUID-benannte eigene Ressourcen werden angelegt und entfernt.
+- `DOCS.md`, `CHANGELOG.md`, README, Entwicklungsanleitung und Etappenstatus
+  aktualisiert. HA-Installationsanleitung verwendet ausdrücklich **`#alpha`**.
+
+### Tatsächlich ausgeführte Prüfungen
+
+Linux x86_64, Python **3.12.14**, uv **0.13.6**, Docker **29.9.2**, BuildKit
+**0.34.0**, Chromium **156.0.8078.79**. Es wurden ausschließlich synthetische
+Anfragen, Identitäten, Pfade und ein synthetischer Persistenzmarker verwendet.
+
+| Befehl / Prüfung | Tatsächliches Ergebnis |
+|---|---|
+| `uv run --locked pytest tests/test_ingress.py` | **28 passed** (0,39 s) |
+| `uv run --locked pytest tests/test_addon_runtime.py` | **5 passed** (0,28 s) |
+| `uv run --locked pytest tests/test_addon_config.py` | **2 passed** (0,02 s) |
+| `uv run --locked pytest` | **60 passed** (0,59 s), alle bisherigen API-Tests enthalten |
+| `docker buildx imagetools inspect` für beide gepinnten Basisimages | Registry-Indizes mit amd64- und arm64-Manifesten vorhanden; keine ARM-Ausführung daraus abgeleitet |
+| `docker build --progress=plain ...` ohne zusätzlichen Cloud-CA-Trust | Paketdownload scheiterte mit **UnknownIssuer** am Cloud-TLS-Proxy; kein erfolgreicher Build behauptet |
+| Derselbe Build mit temporärer Dockerfile-Kopie, BuildKit-CA-Secret und `SSL_CERT_FILE` | Image auf **amd64 erfolgreich gebaut**; CA nicht in Image-Layer kopiert, TLS-Prüfung aktiv |
+| `LEBENSASSISTENT_BUILD_CA_FILE=/etc/ssl/certs/ca-certificates.crt uv run --locked pytest container_tests` | **3 passed** (15,41 s); anschließend um Nachweis für standalone `uv`/`uvx` ergänzt |
+| `uv sync --locked --group browser` mit separatem `UV_PROJECT_ENVIRONMENT` | Frische Umgebung erfolgreich eingerichtet; 29 Pakete installiert |
+| `uv run --group browser --locked pytest tests browser_tests container_tests` mit vorhandenem Chromium und CA-Bundle in dieser Umgebung | **81 passed** (63,66 s): 60 API + 18 Browser + 3 Container, inklusive aller Nachweisergänzungen |
+| `uv run --locked ruff check .` | **All checks passed!** |
+| `uv run --locked ruff format --check .` | Erfolgreich; keine ausstehenden Formatänderungen |
+| `uv lock --check`, `git diff --cached --check` | Erfolgreich |
+| Unabhängiges Code-/Konfigurations-/Dokumentationsreview | Keine offenen Befunde; Nachweislücke für standalone uv/uvx ergänzt |
+| `uvx --from detect-secrets==1.5.0 detect-secrets scan --no-verify` | Keine Funde in vorgemerkten oder bereits versionierten Dateien |
+
+Die vollständigen Befehle und Umgebungsvariablen stehen in
+[DEVELOPMENT.md](DEVELOPMENT.md). Der verwendete CA-Trust wird ausschließlich
+als BuildKit-Secret in einer temporären Dockerfile-Kopie eingebunden. Die
+versionierte Dockerfile wurde dafür nicht verändert; das finale Runtime-Image enthält
+weder die CA-Datei noch uv/uvx, pytest oder Playwright.
+
+Die drei Containerfälle belegen tatsächliche HTTP-200-Antworten vom
+simulierten Supervisor, HTTP 400 bei fehlendem Präfix und HTTP 403 vom fremden
+Peer trotz gefälschtem `X-Forwarded-For`. Präfixe und Redirects wurden geprüft.
+PID 1 läuft mit UID/GID 1000; `/data` gehört 1000:1000 und hat Modus 0700.
+Es gibt keine Port-Bindings. Nach geordnetem Stop, Start, Restart und kompletter
+Neuerstellung des App-Containers war der synthetische Marker im selben Volume
+weiter vorhanden. Ingress-Sessionpfade erschienen nicht in Access-Logs.
+
+Die Containerprüfungen verwenden zusätzlich ein schreibgeschütztes
+Root-Dateisystem, `no-new-privileges` und reduzierte Capabilities. Diese
+verschärften Bedingungen wurden **lokal getestet**, aber nicht als
+Supervisor-Laufzeiteinstellungen konfiguriert oder dort nachgewiesen.
+
+Neue Tests wurden vor den jeweiligen Implementierungen angelegt und
+scheiterten zunächst am fehlenden Adapter, Laufzeitmodul bzw. der fehlenden
+App-Konfiguration. Die späteren grünen Läufe sind oben protokolliert.
+Lint-/Formatfehler wurden innerhalb dieser Etappe behoben. Nach dem Review
+wurde der Nachweis für standalone uv/uvx im Container-Test ergänzt; die finale
+81er-Suite enthält diese zusätzliche Prüfung.
+
+### Datenschutz und Grenzen
+
+Vorgemerkten Diff manuell geprüft und automatisierten Secret-Scan ohne externe
+Verifikation ausgeführt. Keine persönlichen Daten, Zugangsdaten, Datenbanken
+oder Backups hinzugefügt. Build-/Serverlogs, Testvolumes, frische Umgebung und
+Scanprotokoll liegen außerhalb des Repositorys; eigene Testcontainer, -netze,
+-volumes und -imagetags werden vom Test wieder entfernt. Es wurde kein Image
+veröffentlicht und keine echte HA-Installation verändert.
+
+**Nicht durchgeführt:** Installation und Start/Stop/Restart auf HA OS, echte
+HA-Login-/Logout- und Ingress-Sessionprüfung, Supervisor-AppArmor-Einbindung,
+ARM-Build und Raspberry-Pi-Laufzeittest. Der verfügbare BuildKit-Worker bietet
+nur amd64 an; es wurde kein privilegierter ARM-Emulator installiert. Die
+lokalen Container sind ein synthetischer Netzwerktest, kein Home Assistant.
+
+Die offene HA-/ARM-Abnahme ist in [DOCS.md](../DOCS.md) beschrieben. Es bleiben
+keine bekannten Fehler innerhalb des lokal geprüften Umfangs von 0.3. Keine
+Datenbank, Migration oder Finanzfunktion aus Etappe 0.4 oder später begonnen.
+
+### Abschlusscheckliste
+
+- [x] Etappe 0.3 implementiert.
+- [x] Unit-/API-, Browser- und echte Containerprüfungen lokal ausgeführt.
+- [ ] HA-OS-/Ingress-/ARM-Laufzeittest (ausstehend).
+- [ ] Nutzerfreigabe für Etappe 0.4.
